@@ -24,14 +24,30 @@ from hydra.world import create_world
 
 
 def build_store() -> WorldStore:
-    """Postgres when configured, filesystem otherwise. Both are first-class."""
+    """Postgres when configured, filesystem otherwise. Both are first-class.
+
+    When ``HYDRA_REDIS_URL`` is set the live-state read is cached in front of whichever store
+    is chosen — the Observatory polls the current world many times a second, and that is the
+    one read large enough to be worth caching.
+    """
 
     dsn = os.environ.get("HYDRA_DATABASE_URL", "").strip()
     if dsn:
         from hydra.persistence.postgres import PostgresStore
 
-        return PostgresStore(dsn)
-    return FileStore(os.environ.get("HYDRA_DATA_DIR", "./data"))
+        store: WorldStore = PostgresStore(dsn)
+    else:
+        store = FileStore(os.environ.get("HYDRA_DATA_DIR", "./data"))
+
+    redis_url = os.environ.get("HYDRA_REDIS_URL", "").strip()
+    if redis_url:
+        try:
+            from hydra.persistence.livecache import RedisLiveCache
+
+            return RedisLiveCache(store, redis_url)
+        except Exception as exc:  # noqa: BLE001 - the cache is an optimisation, never a requirement
+            print(f"[api] live-state cache disabled ({exc}); reading straight from the store")
+    return store
 
 
 @dataclass(slots=True)

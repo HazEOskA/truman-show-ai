@@ -130,6 +130,7 @@ Everything that changes outcomes lives in `WorldConfig` and nowhere else, so
 |---|---|---|
 | `HYDRA_DATA_DIR` | filesystem store location | `./data` |
 | `HYDRA_DATABASE_URL` | use PostgreSQL instead of the filesystem | unset |
+| `HYDRA_REDIS_URL` | cache the live-state read in front of the store | unset |
 | `HYDRA_LIVE_EVERY_TICKS` | how often the worker publishes live state | `6` |
 | `ANTHROPIC_API_KEY` | enables the optional LLM adapter | unset |
 

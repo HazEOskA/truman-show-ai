@@ -159,6 +159,9 @@ Store protocol (`hydra.persistence.store.WorldStore`) with two real backends:
 * `FileStore` — snapshots as gzip canonical JSON, ledger as gzip JSONL. Default, zero services.
 * `PostgresStore` — tables in [`database/schema.sql`](../database/schema.sql):
   `worlds, timelines, snapshots, events, telemetry, control, kv`.
+* `RedisLiveCache` — optional write-through cache in front of either, for the one read the
+  Observatory makes many times a second (the current world). It caches nothing else and is
+  never a source of truth.
 
 Both implement identical semantics, including *append-only* enforcement on sealed timelines.
 
