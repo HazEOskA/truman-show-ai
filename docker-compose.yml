@@ -1,0 +1,82 @@
+# Hydra World — local stack.
+#
+#   docker compose up
+#   → Observatory  http://localhost:3000
+#   → API          http://localhost:8000/docs
+#
+# The simulation itself needs none of this: `python scripts/run_world.py` runs a whole city
+# with no services at all. Compose is here so the Observatory has something to watch.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hydra
+      POSTGRES_PASSWORD: hydra
+      POSTGRES_DB: hydra
+    volumes:
+      - hydra-postgres:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/010-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hydra -d hydra"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    environment:
+      HYDRA_DATABASE_URL: postgresql://hydra:hydra@postgres:5432/hydra
+      HYDRA_REDIS_URL: redis://redis:6379/0
+      HYDRA_CORS_ORIGINS: "*"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/worker.Dockerfile
+    environment:
+      HYDRA_DATABASE_URL: postgresql://hydra:hydra@postgres:5432/hydra
+      HYDRA_REDIS_URL: redis://redis:6379/0
+      HYDRA_LIVE_EVERY_TICKS: "6"
+      HYDRA_TELEMETRY_EVERY_TICKS: "6"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  observatory:
+    build:
+      context: .
+      dockerfile: docker/observatory.Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  hydra-postgres:

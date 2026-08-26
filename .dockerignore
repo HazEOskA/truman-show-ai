@@ -1,0 +1,7 @@
+**/__pycache__/
+**/*.pyc
+**/node_modules/
+apps/observatory/.next/
+data/
+.git/
+.pytest_cache/
