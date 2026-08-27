@@ -54,7 +54,7 @@ def line(runtime, label: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Hydra World demo scenario")
     parser.add_argument("--seed", type=int, default=20260826)
-    parser.add_argument("--warmup-days", type=int, default=6)
+    parser.add_argument("--warmup-days", type=int, default=12)
     parser.add_argument("--after-days", type=int, default=10)
     parser.add_argument("--loss", type=float, default=0.4)
     args = parser.parse_args()
@@ -88,17 +88,19 @@ def main() -> int:
 
     print("\n8. The news reaches part of the city, not all of it")
     post_shock = [f for f in knowledge.facts.values() if f.importance >= 0.4]
-    if post_shock:
-        subject = max(post_shock, key=lambda f: f.importance)
+    for subject in sorted(post_shock, key=lambda f: -f.importance)[:2]:
         knowing = sum(1 for pid in knowledge.knowledge if knowledge.knows(pid, subject.fact_id))
         print(f"   fact: {subject.text}")
-        print(f"   known by {knowing} of {len(agents.people)} individually simulated people")
+        print(f"     known by {knowing} of {len(agents.people)} individually simulated people")
         shares = sorted(
             ((cohort, values.get(subject.fact_id, 0.0)) for cohort, values in knowledge.cohort_awareness.items()),
             key=lambda pair: -pair[1],
         )[:3]
-        for cohort_id, share in shares:
-            print(f"   {cohort_id}: {share:.0%} aware")
+        if shares and shares[0][1] > 0:
+            for cohort_id, share in shares:
+                print(f"     {cohort_id}: {share:.0%} aware")
+        else:
+            print("     no cohort has picked this one up yet — it travelled person to person")
 
     print("\n9. Behaviour changes")
     unemployed = [p for p in agents.people.values() if not p.employer_id and p.age_years >= 18 and p.alive]

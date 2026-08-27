@@ -19,7 +19,7 @@ from hydra.kernel.systems import Phase, SystemSpec
 from .model import Election, GovernmentState, Policy, PolicyKind
 
 ELECTION_PERIOD_TICKS = TICKS_PER_YEAR * 4
-POLICY_WARMUP_TICKS = TICKS_PER_DAY * 5      # a new world's opening price drift is not a crisis
+POLICY_WARMUP_TICKS = TICKS_PER_DAY * 10     # a new world's opening price drift is not a crisis
 ENERGY_TREND_TRIGGER = 0.25
 # A doubling of the energy price is a political fact on its own: a mayor does not wait for
 # the streets to fill up before responding to it.
