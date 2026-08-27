@@ -352,19 +352,26 @@ def test_projection_is_fast_enough_to_be_free(world):
     assert float(projection.report["total_ms"]) < 8_000.0
 
 
+#: Packages that are allowed to read the projection, because looking at the world is their
+#: whole job. Everything else in ``packages/`` is simulation, and simulation must not know
+#: that a spatial layout exists at all.
+VIEW_PACKAGES = ("spatial", "viewmodel")
+
+
 def test_no_simulation_system_imports_the_projection_engine():
-    """The engine reads the world. If a system ever read the engine, that would invert.
+    """The engine reads the world. If the world ever read the engine, that would invert.
 
     Spatial layout must never become an input to the simulation: the moment a system
-    consults it, the world stops being reproducible from its own seed and rules alone.
+    consults it, the world stops being reproducible from its own seed and rules alone, and
+    a change to how the city *looks* could change what the city *does*.
     """
 
     root = Path(__file__).resolve().parent.parent / "packages"
     offenders = []
     for path in sorted(root.rglob("hydra/**/*.py")):
-        if "spatial" in path.parts:
+        package = path.relative_to(root).parts[0]
+        if package in VIEW_PACKAGES:
             continue
-        text = path.read_text(encoding="utf-8")
-        if "hydra.spatial" in text:
+        if "hydra.spatial" in path.read_text(encoding="utf-8"):
             offenders.append(str(path.relative_to(root)))
     assert offenders == [], f"simulation code imports the projection engine: {offenders}"

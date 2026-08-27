@@ -21,6 +21,7 @@ from hydra.kernel.serialization import encode
 from hydra.kernel.version import KERNEL_VERSION
 
 from . import readmodel
+from .cityview import router as city_router
 from .service import WorldService
 
 app = FastAPI(
@@ -318,3 +319,8 @@ async def stream(world_id: str, timeline_id: str) -> StreamingResponse:
             await asyncio.sleep(1.0)
 
     return StreamingResponse(generator(), media_type="text/event-stream")
+
+
+# -- city view --------------------------------------------------------------------
+# Registered last so the module-level `service` above exists when the router imports it.
+app.include_router(city_router)
