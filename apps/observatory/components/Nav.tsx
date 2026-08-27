@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const LINKS: [string, string][] = [
   ["/", "World"],
   ["/city", "City View"],
+  ["/city/play", "Play City"],
   ["/map", "Map"],
   ["/hydra", "Hydra"],
   ["/people", "People"],
@@ -30,7 +31,11 @@ export default function Nav() {
       </div>
       <div className="nav">
         {LINKS.map(([href, label]) => (
-          <Link key={href} href={href} className={pathname === href ? "active" : ""}>
+          <Link
+            key={href}
+            href={href}
+            className={pathname === href || (href === "/city" && pathname.startsWith("/city/") && pathname !== "/city/play") ? "active" : ""}
+          >
             {label}
           </Link>
         ))}
