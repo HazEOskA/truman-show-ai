@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { API_URL, apiGet } from "../api";
+import { apiGet, apiUrl } from "../api";
 import { CityLive, CityModel } from "./state";
 import type { CityEvent, FrameWire, LayerMeta, LayerValues, ProjectionWire } from "./types";
 
@@ -99,7 +99,7 @@ export function useCityStream(timelineId: string, model: CityModel | null) {
 
     const connect = () => {
       if (closed) return;
-      source = new EventSource(`${API_URL}/city/${timelineId}/stream`);
+      source = new EventSource(`${apiUrl()}/city/${timelineId}/stream`);
       source.onmessage = (message) => {
         const frame = JSON.parse(message.data) as FrameWire;
         live.apply(frame);

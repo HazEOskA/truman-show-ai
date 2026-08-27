@@ -138,6 +138,8 @@ tests/         determinism, sleep, the demo scenario, and a suite per subsystem
 
 Start with [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — it is the binding description of
 how the pieces fit, written before the code and kept true to it.
+[`docs/DEPLOY.md`](docs/DEPLOY.md) covers running it on Cloud Run, including the three things
+about this stack that a request-driven platform does not expect.
 
 ---
 

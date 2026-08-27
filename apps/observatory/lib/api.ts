@@ -2,13 +2,36 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+declare global {
+  interface Window {
+    __HYDRA_API_URL__?: string;
+  }
+}
+
+/**
+ * Where the API lives, resolved when it is used rather than when the bundle is built.
+ *
+ * `NEXT_PUBLIC_*` values are inlined at build time, which means one image can only ever talk
+ * to one API. That is fine locally and wrong everywhere else: on Cloud Run you do not know
+ * the API's URL until after you have deployed it, so a build-time value forces you to build
+ * the front end twice. The server injects the runtime value into `window.__HYDRA_API_URL__`
+ * (see `app/layout.tsx`); the build-time value is the fallback, and localhost is the
+ * fallback's fallback.
+ */
+export function apiUrl(): string {
+  if (typeof window !== "undefined" && window.__HYDRA_API_URL__) {
+    return window.__HYDRA_API_URL__;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+}
+
+/** @deprecated Prefer {@link apiUrl}; this is only correct after hydration. */
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export type Json = Record<string, any>;
 
 export async function apiGet<T = Json>(path: string): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, { cache: "no-store" });
+  const response = await fetch(`${apiUrl()}${path}`, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`${response.status} ${response.statusText}: ${path}`);
   }
@@ -16,7 +39,7 @@ export async function apiGet<T = Json>(path: string): Promise<T> {
 }
 
 export async function apiPost<T = Json>(path: string, body: Json): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${apiUrl()}${path}`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body)

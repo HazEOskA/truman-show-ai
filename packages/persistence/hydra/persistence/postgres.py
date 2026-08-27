@@ -37,7 +37,18 @@ class PostgresStore:
 
     # -- plumbing -----------------------------------------------------------------
     def _connect(self) -> psycopg.Connection:
-        if self._pool is None or self._pool.closed:
+        """The connection, reconnecting when the last one died under us.
+
+        ``closed`` only becomes true after *we* close it. A managed Postgres that drops an
+        idle connection -- which Cloud SQL does routinely -- leaves it open as far as this
+        process is concerned and merely unusable, so checking ``closed`` alone means the
+        store stays broken until the container restarts. ``broken`` is psycopg's own verdict
+        on a connection it has found unusable, and reconnecting on it is what turns a fatal
+        outage into one failed request.
+        """
+
+        connection = self._pool
+        if connection is None or connection.closed or getattr(connection, "broken", False):
             self._pool = psycopg.connect(self.dsn, autocommit=True, row_factory=dict_row)
         return self._pool
 

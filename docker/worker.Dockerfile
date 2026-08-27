@@ -14,5 +14,9 @@ COPY scripts /app/scripts
 
 RUN python /app/scripts/install_dev_paths.py
 
-ENV PYTHONPATH=/app/apps/simulation-worker:/app/apps/api
-CMD ["python", "-m", "hydra_worker.worker"]
+ENV PYTHONPATH=/app/apps/simulation-worker:/app/apps/api PORT=8080
+EXPOSE 8080
+
+# `service` rather than `worker`: it runs the same loop but answers a health check, which is
+# what keeps the container alive on a platform that only understands requests.
+CMD exec python -m hydra_worker.service

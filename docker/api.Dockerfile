@@ -15,6 +15,9 @@ COPY scripts /app/scripts
 # One .pth file makes every `hydra.*` package importable from its own directory.
 RUN python /app/scripts/install_dev_paths.py
 
-ENV PYTHONPATH=/app/apps/api
+ENV PYTHONPATH=/app/apps/api PORT=8000
 EXPOSE 8000
-CMD ["uvicorn", "hydra_api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Cloud Run injects $PORT and ignores EXPOSE, so the port has to be read at start, not baked.
+# Shell form on purpose: exec form would pass the literal string "$PORT" to uvicorn.
+CMD exec uvicorn hydra_api.main:app --host 0.0.0.0 --port ${PORT}

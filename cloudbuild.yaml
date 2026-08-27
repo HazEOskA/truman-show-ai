@@ -1,0 +1,57 @@
+# Builds the three Hydra images in one submission.
+#
+#   gcloud builds submit --config cloudbuild.yaml \
+#       --substitutions=_REGION=europe-central2,_REPO=hydra
+#
+# The Dockerfiles live under docker/ with the repository root as their build context, which
+# `gcloud builds submit --tag` cannot express -- it only looks for a Dockerfile at the root.
+# Hence an explicit config rather than the one-liner.
+
+substitutions:
+  _REGION: europe-central2
+  _REPO: hydra
+  _TAG: latest
+
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/api:${_TAG}"
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/worker:${_TAG}"
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/observatory:${_TAG}"
+
+steps:
+  - id: api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - docker/api.Dockerfile
+      - -t
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/api:${_TAG}"
+      - .
+
+  - id: worker
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - docker/worker.Dockerfile
+      - -t
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/worker:${_TAG}"
+      - .
+
+  # The Observatory image is not built against any particular API: the address is read from
+  # HYDRA_API_URL at request time, so one image serves every environment.
+  - id: observatory
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - docker/observatory.Dockerfile
+      - -t
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/observatory:${_TAG}"
+      - .
+
+timeout: 1800s
