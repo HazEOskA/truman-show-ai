@@ -1,0 +1,284 @@
+/*
+ * City View styling.
+ *
+ * The page is a stage with two rails. The canvas gets every pixel it can, and the chrome
+ * around it stays dark, quiet and out of the way -- the city is the thing being read, and a
+ * bright panel next to it competes for exactly the attention the map needs.
+ */
+
+.city {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  margin: -18px;
+}
+
+.city-bar {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex-wrap: wrap;
+}
+
+.city-clock strong {
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  display: block;
+}
+.city-clock span {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.city-clock .live { color: var(--good); }
+.city-clock .stale { color: var(--warn); }
+
+/* The honesty readout. This is not decoration: it is the claim the view makes about itself. */
+.city-honesty {
+  flex: 1 1 280px;
+  min-width: 240px;
+  max-width: 460px;
+}
+.city-honesty span {
+  font-size: 11px;
+  margin-right: 12px;
+}
+.city-honesty .ok { color: var(--good); }
+.city-honesty .inferred { color: var(--warn); }
+.city-honesty small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+.honesty-bar {
+  height: 4px;
+  background: rgba(240, 163, 94, 0.35);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.honesty-fill {
+  height: 100%;
+  background: var(--good);
+}
+
+.city-counts {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+}
+.city-counts .muted { color: var(--muted); }
+
+.city-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.city-panel,
+.city-inspector {
+  width: 232px;
+  flex: 0 0 232px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  padding: 12px;
+  overflow-y: auto;
+}
+.city-inspector {
+  border-right: none;
+  border-left: 1px solid var(--line);
+  width: 300px;
+  flex: 0 0 300px;
+}
+
+.city-panel section { margin-bottom: 18px; }
+.city-panel h3,
+.city-inspector h3 {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.city-inspector h3 {
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text);
+}
+.city-panel h4,
+.city-inspector h4 {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 14px 0 6px;
+}
+.city-panel label {
+  display: block;
+  font-size: 11px;
+  margin-bottom: 6px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.chip:hover { color: var(--text); border-color: var(--accent-2); }
+.chip.active { background: var(--accent-2); border-color: var(--accent-2); color: #0a0c10; }
+
+.legend {
+  margin-top: 10px;
+  font-size: 11px;
+}
+.legend small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+}
+.legend code { color: var(--accent); }
+
+.city-stats { font-size: 10px; color: var(--text); }
+.city-stats .muted { color: var(--muted); }
+
+.city-stage {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  background: #06070b;
+}
+.city-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+.city-canvas:active { cursor: grabbing; }
+
+.city-error,
+.city-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  pointer-events: none;
+  z-index: 2;
+}
+.city-error { color: var(--bad); }
+
+.kv {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 3px 8px;
+  font-size: 11px;
+  margin: 8px 0;
+}
+.kv span { color: var(--muted); }
+.kv b { font-weight: 500; }
+
+.row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px; }
+.tag {
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.tag.ok { color: var(--good); border-color: rgba(106, 209, 154, 0.4); }
+.tag.inferred { color: var(--warn); border-color: rgba(240, 163, 94, 0.4); }
+.tag.asleep { color: var(--accent-2); border-color: rgba(122, 162, 247, 0.4); }
+
+.people, .goals {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 11px;
+}
+.people li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--line);
+}
+.goals li {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+.goals em { color: var(--muted); font-style: normal; }
+
+.link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.link:hover { text-decoration: underline; }
+
+.places { display: flex; flex-direction: column; gap: 3px; }
+.places b {
+  color: var(--muted);
+  font-weight: 400;
+  display: inline-block;
+  width: 38px;
+}
+
+.following {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/*
+ * Mobile. The brief made this mandatory, and on a phone the rails cannot flank the map --
+ * they would leave a canvas too narrow to read a street in. So they stack: the map takes the
+ * top two thirds, the panels scroll underneath it.
+ */
+@media (max-width: 900px) {
+  .city { margin: -12px; height: 100dvh; }
+  .city-bar { gap: 12px; padding: 8px 10px; }
+  .city-honesty { order: 3; flex-basis: 100%; max-width: none; }
+  .city-body { flex-direction: column; }
+  .city-stage { flex: 0 0 62vh; order: -1; }
+  .city-panel,
+  .city-inspector {
+    width: 100%;
+    flex: 0 0 auto;
+    border: none;
+    border-top: 1px solid var(--line);
+    max-height: 40vh;
+  }
+  .city-inspector:not(.open) { display: none; }
+}
