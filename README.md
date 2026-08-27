@@ -20,9 +20,27 @@ configured at all**, and the determinism tests require exactly that.
 
 ## Quick start
 
-Two ways in. Neither needs a database.
+Three ways in. None of them needs a database.
 
-### 1. Run a city from the command line
+### 1. See the city — one command
+
+```bash
+python scripts/dev.py
+```
+
+Builds a world if there is not one already, then starts the API, the simulation worker and
+the Observatory together, with every import path wired for you. Works the same on Windows,
+macOS and Linux; Ctrl-C stops all three.
+
+Then open **<http://localhost:3000/city>**.
+
+Useful flags: `--fresh` rebuilds the world, `--days 3` simulates further before serving,
+`--no-web` runs the backend alone, `--api-port` / `--web-port` move the ports.
+
+Node 20+ is needed for the Observatory. Without it the script still runs the backend and
+says so.
+
+### 2. Run a city from the command line
 
 ```bash
 python scripts/install_dev_paths.py        # makes hydra.* importable (writes one .pth file)
@@ -42,7 +60,7 @@ Add a shock and watch the city deal with it:
 python scripts/run_world.py --days 12 --scenario plant_failure --scenario-tick 864
 ```
 
-### 2. Run the whole stack
+### 3. Run the whole stack in Docker
 
 ```bash
 docker compose up
@@ -51,9 +69,11 @@ docker compose up
 * Observatory — <http://localhost:3000>
 * API docs — <http://localhost:8000/docs>
 
-In the Observatory: pick a seed → **Genesis** → **Run**. Then walk the views: the map, the
-people, a single person's beliefs, the firms, the markets, city hall, the front pages, the
-research graph, the ledger, the causal graph, and the timeline where you can fork the world.
+In the Observatory: pick a seed → **Genesis** → **Run**. **City View** draws the city itself —
+every building on its plot, every person in the building the world says they are in. Then walk
+the rest: the people, a single person's beliefs, the firms, the markets, city hall, the front
+pages, the research graph, the ledger, the causal graph, and the timeline where you can fork
+the world.
 
 ---
 
@@ -112,7 +132,7 @@ apps/          api (FastAPI) · observatory (Next.js) · simulation-worker
 packages/      one directory per subsystem, all sharing the hydra.* namespace
 database/      PostgreSQL schema, including the append-only guard on history
 docs/          architecture lock, subsystem contracts, repository map
-scripts/       run a world, install import paths, dump contracts
+scripts/       run the stack, run a world, install import paths, dump contracts
 tests/         determinism, sleep, the demo scenario, and a suite per subsystem
 ```
 
