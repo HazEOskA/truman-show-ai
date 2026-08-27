@@ -6,8 +6,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import WorldPicker from "@/components/WorldPicker";
 import HydraPlayScene, { type PlayTelemetry } from "@/components/world3d/HydraPlayScene";
 import { useSelection } from "@/lib/api";
+import type { CityModel } from "@/lib/city/state";
 import { useCityProjection, useCityStream } from "@/lib/city/useCity";
-import { buildPlayLayout, type PlayTarget } from "@/lib/world3d/adapter";
+import { buildPlayLayout, type PlayLayout, type PlayTarget } from "@/lib/world3d/adapter";
 import { attachPlayInput, playInput } from "@/lib/world3d/input";
 
 import "./play.css";
@@ -97,11 +98,33 @@ export default function CityPlayPage() {
           <div className="hud-controls">WASD / ARROWS · SHIFT SPRINT · E INTERACT</div>
         </section>
 
+        {model && layout && <MiniMap model={model} layout={layout} telemetry={telemetry} />}
+        <div className="play-graffiti" aria-hidden>OSA // HYDRA</div>
         <div className={telemetry.nearTarget ? "play-interact visible" : "play-interact"}>E // INTERACT</div>
         {toast && <div className="play-toast">{toast}</div>}
 
         <MobileControls />
       </div>
+    </div>
+  );
+}
+
+function MiniMap({ model, layout, telemetry }: { model: CityModel; layout: PlayLayout; telemetry: PlayTelemetry }) {
+  const bounds = model.wire.bounds;
+  const width = Math.max(1, bounds.max_x - bounds.min_x);
+  const depth = Math.max(1, bounds.max_y - bounds.min_y);
+  const px = (x: number) => ((x - bounds.min_x) / width) * 100;
+  const py = (z: number) => ((z - bounds.min_y) / depth) * 100;
+  return (
+    <div className="play-minimap">
+      <div className="minimap-title">LIVE MAP</div>
+      <svg viewBox="0 0 100 100" role="img" aria-label="Hydra live minimap">
+        <rect x="1" y="1" width="98" height="98" rx="3" className="minimap-bound" />
+        {layout.targets.map((target) => (
+          <circle key={target.id} cx={px(target.x)} cy={py(target.z)} r="2.2" fill={target.color} opacity="0.8" />
+        ))}
+        <circle cx={px(telemetry.x)} cy={py(telemetry.z)} r="2.8" className="minimap-player" />
+      </svg>
     </div>
   );
 }
