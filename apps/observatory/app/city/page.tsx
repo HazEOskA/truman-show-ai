@@ -20,13 +20,17 @@ import WorldPicker from "@/components/WorldPicker";
 import { useSelection } from "@/lib/api";
 import { CityRenderer, type PickResult } from "@/lib/city/renderer";
 import {
+  useCauses,
   useCityEvents,
   useCityProjection,
   useCityStream,
+  useClock,
   useInspector,
-  useLayers
+  useLayers,
+  useScenarios
 } from "@/lib/city/useCity";
 import { Lod } from "@/lib/city/camera";
+import type { CityEvent } from "@/lib/city/types";
 
 const LOD_LABEL: Record<number, string> = {
   [Lod.Region]: "region",
@@ -46,6 +50,10 @@ export default function CityPage() {
   const { catalogue, meta, values } = useLayers(timelineId, layerId, pulse.tick);
   const events = useCityEvents(timelineId, pulse.tick);
   const { target, detail, inspect } = useInspector(timelineId, pulse.tick);
+  const clock = useClock(worldId, timelineId, pulse.tick);
+  const scenarios = useScenarios(worldId, timelineId);
+  const [eventId, setEventId] = useState<string | null>(null);
+  const { chain } = useCauses(worldId, timelineId, eventId);
 
   const [showDerived, setShowDerived] = useState(true);
   const [showCohorts, setShowCohorts] = useState(true);
@@ -57,6 +65,7 @@ export default function CityPage() {
   const onPick = useCallback(
     (hit: PickResult | null) => {
       rendererRef.current?.select(hit);
+      setEventId(null);
       inspect(hit ? { kind: hit.kind, id: hit.id } : null);
     },
     [inspect]
@@ -220,6 +229,60 @@ export default function CityPage() {
             </button>
           </section>
 
+          <section>
+            <h3>Time</h3>
+            <div className="chips">
+              <button
+                className={clock.running ? "chip active" : "chip"}
+                onClick={() => (clock.running ? clock.pause() : clock.play())}
+                disabled={clock.busy || !worldId}
+              >
+                {clock.running ? "Pause" : "Play"}
+              </button>
+              <button className="chip" onClick={() => clock.step(6)} disabled={clock.busy || !worldId}>
+                +1 hour
+              </button>
+              <button className="chip" onClick={() => clock.step(144)} disabled={clock.busy || !worldId}>
+                +1 day
+              </button>
+            </div>
+            <div className="chips" style={{ marginTop: 6 }}>
+              {[1, 2, 4, 12].map((speed) => (
+                <button
+                  key={speed}
+                  className={clock.control?.speed === speed ? "chip active" : "chip"}
+                  onClick={() => clock.setSpeed(speed)}
+                  disabled={clock.busy || !worldId}
+                >
+                  ×{speed}
+                </button>
+              ))}
+            </div>
+            {clock.control?.note && <p className="legend"><small>{clock.control.note}</small></p>}
+          </section>
+
+          <section>
+            <h3>Shock the city</h3>
+            <div className="chips">
+              {scenarios.names.map((name) => (
+                <button
+                  key={name}
+                  className="chip"
+                  onClick={() => scenarios.fire(name)}
+                  disabled={!worldId}
+                  title="Queued for the next tick boundary; the consequences are the world's own"
+                >
+                  {name.replace(/_/g, " ")}
+                </button>
+              ))}
+            </div>
+            {scenarios.queued && (
+              <p className="legend">
+                <small>{scenarios.queued.replace(/_/g, " ")} queued — watch the layers move.</small>
+              </p>
+            )}
+          </section>
+
           <section className="city-stats">
             <h3>Render</h3>
             <div>
@@ -242,8 +305,22 @@ export default function CityPage() {
           <canvas ref={canvasRef} className="city-canvas" />
         </div>
 
-        <aside className={target ? "city-inspector open" : "city-inspector"}>
-          {!target && <p className="muted">Click a building or a person.</p>}
+        <aside className={target || eventId ? "city-inspector open" : "city-inspector"}>
+          {!target && !eventId && (
+            <EventFeed events={events} onPick={(id, anchor) => {
+              setEventId(id);
+              inspect(null);
+              if (anchor) rendererRef.current?.lookAt(anchor[0], anchor[1]);
+            }} />
+          )}
+
+          {eventId && !target && (
+            <CausePanel
+              chain={chain}
+              onBack={() => setEventId(null)}
+              onEvent={(id) => setEventId(id)}
+            />
+          )}
 
           {target?.kind === "building" && detail && (
             <BuildingPanel
@@ -409,6 +486,133 @@ function PersonPanel({
           </ul>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * What just happened, in the order it happened.
+ *
+ * This is the inspector's resting state on purpose. An empty panel saying "click something"
+ * wastes the one piece of screen that could be telling you the city is alive; a feed of real
+ * events, each one clickable through to its causes, does the opposite.
+ */
+function EventFeed({
+  events,
+  onPick
+}: {
+  events: CityEvent[];
+  onPick: (id: string, anchor: [number, number] | null) => void;
+}) {
+  if (!events.length) {
+    return <p className="muted">Nothing has happened yet. Press play.</p>;
+  }
+  return (
+    <div>
+      <h3>Happening now</h3>
+      <ul className="feed">
+        {events.map((event) => (
+          <li key={event.event_id}>
+            <button className="link" onClick={() => onPick(event.event_id, event.anchor)}>
+              {event.headline || event.action.replace(/_/g, " ")}
+            </button>
+            <div className="feed-meta">
+              <span>{event.sim_time || `t${event.tick}`}</span>
+              <span className={`tag ${event.anchor_kind === "building" ? "ok" : ""}`}>
+                {event.anchor_kind === "none" ? "city-wide" : event.anchor_kind}
+              </span>
+              {event.importance >= 0.5 && <span className="tag inferred">major</span>}
+              {/* Most events are their own root. Marking the ones with a recorded cause
+                  saves a viewer from clicking through to "nothing caused this" repeatedly. */}
+              {event.causes.length > 0 && <span className="tag ok">why</span>}
+              {/* Which paper said it, and how it chose to say it. Hydra's outlets have
+                  owners and slants, and the same event reaches people as several stories. */}
+              {event.outlet && <span className="tag">{event.outlet}</span>}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * Why it happened.
+ *
+ * The chain is not reconstructed here or anywhere else: the kernel recorded each link when
+ * the event fired. That is the difference between a simulation that can be asked why and a
+ * story that has been written to look like one.
+ */
+function CausePanel({
+  chain,
+  onBack,
+  onEvent
+}: {
+  chain: Record<string, any> | null;
+  onBack: () => void;
+  onEvent: (id: string) => void;
+}) {
+  if (!chain) return <p className="muted">Reading the causal graph…</p>;
+  const event = chain.event as Record<string, any> | null;
+  if (!event) {
+    return (
+      <div>
+        <button className="chip" onClick={onBack}>Back</button>
+        <p className="muted">This event is no longer in the ledger window.</p>
+      </div>
+    );
+  }
+
+  const causes = (chain.chain ?? []) as Record<string, any>[];
+  const effects = (chain.consequences ?? []) as Record<string, any>[];
+
+  return (
+    <div>
+      <button className="chip" onClick={onBack}>Back</button>
+      <h3>{event.action?.replace(/_/g, " ")}</h3>
+      <div className="kv">
+        <span>When</span>
+        <b>{event.sim_time || `tick ${event.tick}`}</b>
+        <span>Topic</span>
+        <b>{event.topic}</b>
+        <span>Where</span>
+        <b>{event.location || "city-wide"}</b>
+        <span>Importance</span>
+        <b>{Math.round((event.importance ?? 0) * 100)}%</b>
+      </div>
+
+      <h4>Because ({causes.length})</h4>
+      {causes.length === 0 && <p className="muted">Nothing caused this — it is a root event.</p>}
+      <ul className="feed">
+        {causes.map((node, i) => (
+          <li key={i}>
+            <button className="link" onClick={() => onEvent(node.event.event_id)}>
+              {"→ ".repeat(Math.min(3, node.depth))}
+              {node.event.action?.replace(/_/g, " ")}
+            </button>
+            <div className="feed-meta">
+              <span>{node.event.sim_time || `t${node.event.tick}`}</span>
+              <span>{node.event.topic}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      <h4>So then ({effects.length})</h4>
+      {effects.length === 0 && <p className="muted">Nothing has followed from it yet.</p>}
+      <ul className="feed">
+        {effects.slice(0, 12).map((node, i) => (
+          <li key={i}>
+            <button className="link" onClick={() => onEvent(node.event.event_id)}>
+              {node.event.action?.replace(/_/g, " ")}
+            </button>
+            <div className="feed-meta">
+              <span>{node.event.sim_time || `t${node.event.tick}`}</span>
+              <span>{node.event.topic}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

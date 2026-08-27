@@ -141,6 +141,8 @@ export interface CityEvent {
   topic: string;
   action: string;
   headline: string;
+  outlet: string;
+  framing: string;
   importance: number;
   actor: string | null;
   target: string | null;

@@ -31,6 +31,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGES = ROOT / "packages"
+#: What ``run_world.py`` names the world it creates. Printed so the control endpoints can
+#: be reached by hand without guessing.
+WORLD_ID = "world_hydra"
+
 API_DIR = ROOT / "apps" / "api"
 WORKER_DIR = ROOT / "apps" / "simulation-worker"
 OBSERVATORY_DIR = ROOT / "apps" / "observatory"
@@ -65,6 +69,7 @@ def create_world(data_dir: Path, seed: int, days: float, env: dict[str, str]) ->
         "--seed", str(seed),
         "--days", str(days),
         "--data", str(data_dir),
+        "--world-id", WORLD_ID,
     ]
     subprocess.run(command, cwd=ROOT, env=env, check=True)
 
@@ -136,6 +141,7 @@ def main() -> int:
             )
 
     print()
+    print(f"[dev] world       {WORLD_ID} / tl_zero")
     print(f"[dev] City View   http://localhost:{args.web_port}/city")
     print(f"[dev] Observatory http://localhost:{args.web_port}")
     print(f"[dev] API docs    http://localhost:{args.api_port}/docs")

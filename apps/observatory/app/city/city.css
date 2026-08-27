@@ -280,5 +280,26 @@
     border-top: 1px solid var(--line);
     max-height: 40vh;
   }
-  .city-inspector:not(.open) { display: none; }
+  /* The inspector always carries something worth reading now -- the event feed when
+     nothing is selected -- so it stays on screen instead of collapsing. */
+}
+
+/* The event feed and the causal chain behind it. */
+.feed {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+.feed li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.feed-meta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 2px;
 }

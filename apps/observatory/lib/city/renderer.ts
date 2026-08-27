@@ -41,6 +41,8 @@ interface ActiveLayer {
 }
 
 const TAU = Math.PI * 2;
+/** How long a person takes to cross the city when the world says they have moved. */
+const TRAVEL_MS = 2200;
 
 export class CityRenderer {
   readonly camera = new Camera();
@@ -169,6 +171,14 @@ export class CityRenderer {
       this.camera.zoom = Math.max(this.camera.zoom, 1.6);
       this.options.onCamera?.();
     }
+  }
+
+  /** Put a world point in the middle of the view, zooming in enough to read it. */
+  lookAt(x: number, y: number, minZoom = 0.9): void {
+    this.camera.centreOn(x, y);
+    this.camera.zoom = Math.max(this.camera.zoom, minZoom);
+    this.followed = null;
+    this.options.onCamera?.();
   }
 
   frameCity(): void {
@@ -511,13 +521,11 @@ export class CityRenderer {
     if (!live || lod < Lod.Street) return;
 
     const view = this.camera.visibleBounds(120);
-    // Agents live in the world container, so their radius is in metres -- but a person has
-    // to stay a couple of pixels wide or they vanish exactly when you zoom out to look for
-    // a crowd. Floor the radius in screen space and let it shrink to life size up close.
-    // Floored so a person never vanishes, capped so a full building never fuses into one
-    // blob. Between those two the dot is roughly two pixels at any zoom.
+    // Floored so a person never vanishes when you zoom out to look for a crowd, capped so a
+    // full building never fuses into one blob. Between the two the dot is about two pixels
+    // at any zoom.
     const radius = Math.min(5.0, Math.max(lod >= Lod.Close ? 1.7 : 1.4, 2.0 / this.camera.scale));
-    const perBuilding = new Map<number, number>();
+    const now = performance.now();
 
     for (let slot = 0; slot < live.count; slot += 1) {
       if (!live.live[slot]) continue;
@@ -525,20 +533,32 @@ export class CityRenderer {
       if (index < 0) continue;
       const building = model.buildings[index];
       if (!building || building.width <= 0) continue;
-      if (building.x < view.min_x || building.x > view.max_x) continue;
-      if (building.y < view.min_y || building.y > view.max_y) continue;
 
       const derived = live.source[slot] === SOURCE.DERIVED;
       if (derived && !this.showDerived) continue;
 
-      // Spread the occupants of one building around its entrance so they are countable.
-      const nth = perBuilding.get(index) ?? 0;
-      perBuilding.set(index, nth + 1);
-      const ring = Math.floor(nth / 8);
-      const angle = (nth % 8) * (TAU / 8) + ring * 0.4;
-      const spread = building.width * 0.4 + ring * radius * 2.3;
-      const x = building.entrance[0] + Math.cos(angle) * spread;
-      const y = building.entrance[1] + Math.sin(angle) * spread;
+      // Where this person stands on their plot, decided by who they are rather than by how
+      // many neighbours happen to be home. Counting arrivals instead made everyone shuffle
+      // sideways whenever one person left, which reads as the whole building twitching.
+      const spot = spotOf(slot, building.width);
+      let x = building.entrance[0] + spot.dx;
+      let y = building.entrance[1] + spot.dy;
+
+      // A move arrives as a jump in the data; walk them across it instead.
+      const progress = live.travel(slot, now, TRAVEL_MS);
+      let walking = false;
+      if (progress < 1) {
+        const from = model.buildings[live.fromBuilding[slot]];
+        if (from && from.width > 0) {
+          const fromSpot = spotOf(slot, from.width);
+          const eased = progress * progress * (3 - 2 * progress);
+          x = (from.entrance[0] + fromSpot.dx) * (1 - eased) + x * eased;
+          y = (from.entrance[1] + fromSpot.dy) * (1 - eased) + y * eased;
+          walking = true;
+        }
+      }
+
+      if (x < view.min_x || x > view.max_x || y < view.min_y || y > view.max_y) continue;
 
       const asleep = live.isAsleep(slot);
       const followed = this.followed !== null && live.idOf[slot] === this.followed;
@@ -550,7 +570,7 @@ export class CityRenderer {
       else colour = C.AGENT_AWAKE;
 
       // Inference looks like inference: smaller, dimmer, never as solid as a fact.
-      const alpha = derived ? 0.4 : 0.85;
+      const alpha = (derived ? 0.4 : 0.85) * (walking ? 0.85 : 1);
       const size = (followed ? radius * 1.9 : radius) * (derived ? 0.78 : 1);
 
       g.circle(x, y, size).fill({ color: colour, alpha });
@@ -681,4 +701,18 @@ function pointInFlatPolygon(x: number, y: number, flat: number[]): boolean {
 
 function mixColour(a: number, b: number, t: number): number {
   return C.mix(a, b, Math.max(0, Math.min(1, t)));
+}
+
+/**
+ * A stable place on the plot for one person.
+ *
+ * Derived from their slot, so it does not move when the people around them do, and spread
+ * over the plot rather than stacked on the door.
+ */
+function spotOf(slot: number, width: number): { dx: number; dy: number } {
+  const hash = Math.imul(slot + 1, 2654435761) >>> 0;
+  const angle = ((hash & 0xffff) / 0xffff) * TAU;
+  const radial = 0.35 + (((hash >>> 16) & 0xff) / 0xff) * 0.55;
+  const spread = width * 0.42 * radial;
+  return { dx: Math.cos(angle) * spread, dy: Math.sin(angle) * spread };
 }

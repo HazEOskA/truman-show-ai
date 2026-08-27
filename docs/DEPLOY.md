@@ -156,10 +156,13 @@ Genesis takes about five seconds and is a normal API call:
 ```bash
 API=$(gcloud run services describe hydra-api --region=$REGION --format='value(status.url)')
 
-curl -X POST "$API/worlds" -H 'content-type: application/json' \
-     -d '{"seed": 20260826, "name": "Hydra"}'
+# Read the world id back rather than assuming it: the API derives one from the seed, and a
+# world created another way (scripts/run_world.py, for instance) will have a different one.
+WORLD=$(curl -sX POST "$API/worlds" -H 'content-type: application/json' \
+        -d '{"seed": 20260826, "name": "Hydra"}' \
+        | python -c 'import json,sys; print(json.load(sys.stdin)["world_id"])')
 
-curl -X POST "$API/worlds/world_20260826/timelines/tl_zero/control" \
+curl -X POST "$API/worlds/$WORLD/timelines/tl_zero/control" \
      -H 'content-type: application/json' \
      -d '{"mode": "running", "speed": 2.0}'
 ```

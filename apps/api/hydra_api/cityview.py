@@ -375,7 +375,9 @@ def events(
                 "sim_time": event.sim_time,
                 "topic": event.topic,
                 "action": event.action,
-                "headline": event.headline(),
+                "headline": _describe(event),
+                "outlet": str(event.payload.get("outlet", "") or ""),
+                "framing": str(event.payload.get("framing", "") or ""),
                 "importance": round(event.importance, 3),
                 "actor": event.actor,
                 "target": event.target,
@@ -388,6 +390,35 @@ def events(
             }
         )
     return {"tick": state.meta.tick, "events": out}
+
+
+def _describe(event) -> str:
+    """The most readable line the event itself already contains.
+
+    Systems that write prose write it into the payload: the media system composes an actual
+    headline, complete with the outlet's slant. Falling back to ``Event.headline()`` for those
+    turns "Profits before people: the price of food fell 2.4%" into "published -> fact_000000159",
+    which is the world's most interesting output rendered as its least readable.
+
+    Nothing is composed here that the world did not already compute. Where there is no prose,
+    the numbers the event carries are formatted; where there are no numbers, the generic
+    headline stands.
+    """
+
+    prose = event.payload.get("headline")
+    if isinstance(prose, str) and prose.strip():
+        return prose.strip()
+
+    if event.topic == "market.price.move":
+        code = str(event.payload.get("code", event.target or ""))
+        change = event.payload.get("change_pct")
+        price = event.payload.get("price_minor")
+        if isinstance(change, (int, float)):
+            direction = "rose" if change > 0 else "fell"
+            tail = f" to {price / 100:.2f} HYD" if isinstance(price, (int, float)) else ""
+            return f"{code.replace('_', ' ')} {direction} {abs(change):.1f}%{tail}"
+
+    return event.headline()
 
 
 def _building_named_by(event, geography: GeographyState) -> str:

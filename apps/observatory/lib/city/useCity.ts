@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { apiGet, apiUrl } from "../api";
+import { apiGet, apiPost, apiUrl } from "../api";
 import { CityLive, CityModel } from "./state";
 import type { CityEvent, FrameWire, LayerMeta, LayerValues, ProjectionWire } from "./types";
 
@@ -165,7 +165,10 @@ export function useCityEvents(timelineId: string, tick: number) {
   useEffect(() => {
     if (!timelineId) return;
     let cancelled = false;
-    apiGet<{ events: CityEvent[] }>(`/city/${timelineId}/events?limit=80`)
+    // A running Hydra emits a few thousand events a day and most of them are people
+    // posting on HydraNet. Unfiltered, the feed is chatter and the map pulses constantly;
+    // the threshold keeps what a person watching the city would actually call news.
+    apiGet<{ events: CityEvent[] }>(`/city/${timelineId}/events?limit=80&min_importance=0.28`)
       .then((data) => {
         if (!cancelled) setEvents(data.events);
       })
@@ -219,4 +222,120 @@ export function useInspector(timelineId: string, tick: number) {
   }, [timelineId, target?.kind, target?.id, tick]);
 
   return { target, detail, loading, inspect };
+}
+
+
+/**
+ * Driving the clock from inside the city.
+ *
+ * The Observatory is read-first, and this does not change that: nothing here writes world
+ * state. It writes *operator intent* to the control channel, which the worker reads at a
+ * tick boundary. Pressing play cannot reach into a tick in flight.
+ */
+export function useClock(worldId: string, timelineId: string, tick: number) {
+  const [control, setControl] = useState<Record<string, any> | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const base = worldId && timelineId ? `/worlds/${worldId}/timelines/${timelineId}` : null;
+
+  useEffect(() => {
+    if (!base) return;
+    let cancelled = false;
+    apiGet<Record<string, any>>(`${base}/control`)
+      .then((data) => {
+        if (!cancelled) setControl(data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [base, Math.floor(tick / 6)]);
+
+  const send = useCallback(
+    async (body: Record<string, any>) => {
+      if (!base) return;
+      setBusy(true);
+      try {
+        setControl(await apiPost<Record<string, any>>(`${base}/control`, body));
+      } catch {
+        // The worker may not have picked the world up yet; the next poll will correct this.
+      } finally {
+        setBusy(false);
+      }
+    },
+    [base]
+  );
+
+  const running = control?.mode === "running";
+  return {
+    control,
+    running,
+    busy,
+    play: () => send({ mode: "running" }),
+    pause: () => send({ mode: "paused" }),
+    setSpeed: (speed: number) => send({ speed }),
+    step: (ticks: number) => send({ mode: "paused", step_ticks: ticks })
+  };
+}
+
+/** The scenarios the world knows how to run, and a way to queue one. */
+export function useScenarios(worldId: string, timelineId: string) {
+  const [names, setNames] = useState<string[]>([]);
+  const [queued, setQueued] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiGet<{ scenarios: string[] }>("/scenarios")
+      .then((data) => setNames(data.scenarios))
+      .catch(() => undefined);
+  }, []);
+
+  const fire = useCallback(
+    async (name: string) => {
+      if (!worldId || !timelineId) return;
+      try {
+        await apiPost(`/worlds/${worldId}/timelines/${timelineId}/scenario`, { name, params: {} });
+        setQueued(name);
+        window.setTimeout(() => setQueued(null), 6000);
+      } catch {
+        setQueued(null);
+      }
+    },
+    [worldId, timelineId]
+  );
+
+  return { names, queued, fire };
+}
+
+/**
+ * Why an event happened.
+ *
+ * The causal graph is the claim Hydra makes that a scripted demo cannot: every event knows
+ * what caused it, because the kernel recorded the link when it happened rather than
+ * reconstructing it afterwards. This is the reader for that.
+ */
+export function useCauses(worldId: string, timelineId: string, eventId: string | null) {
+  const [chain, setChain] = useState<Record<string, any> | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!worldId || !timelineId || !eventId) {
+      setChain(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    apiGet<Record<string, any>>(`/worlds/${worldId}/timelines/${timelineId}/events/${eventId}/causes`)
+      .then((data) => {
+        if (!cancelled) setChain(data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [worldId, timelineId, eventId]);
+
+  return { chain, loading };
 }

@@ -121,6 +121,9 @@ export class CityLive {
   activity: Uint8Array;
   tier: Uint8Array;
   live: Uint8Array;
+  /** Where this person was before their last move, and when the move began. */
+  fromBuilding: Int32Array;
+  movedAt: Float64Array;
   private free: number[] = [];
   private capacity: number;
   count = 0;
@@ -143,6 +146,8 @@ export class CityLive {
     this.activity = new Uint8Array(capacity);
     this.tier = new Uint8Array(capacity);
     this.live = new Uint8Array(capacity);
+    this.fromBuilding = new Int32Array(capacity).fill(-1);
+    this.movedAt = new Float64Array(capacity);
 
     this.occupancy = new Int32Array(buildingCount);
     this.awake = new Int32Array(buildingCount);
@@ -156,9 +161,18 @@ export class CityLive {
   apply(frame: FrameWire): void {
     if (frame.kind === "keyframe") this.reset();
 
+    // The world publishes positions on its own cadence, so a person changing building
+    // arrives as a jump. Remembering where they were, and when, is what lets the renderer
+    // walk them there instead -- the difference between a city and a slideshow.
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
     const { id, b, s, a, t } = frame.agents;
     for (let i = 0; i < id.length; i += 1) {
       const slot = this.slotFor(id[i]);
+      const was = this.building[slot];
+      if (was >= 0 && b[i] >= 0 && was !== b[i]) {
+        this.fromBuilding[slot] = was;
+        this.movedAt[slot] = now;
+      }
       this.building[slot] = b[i];
       this.source[slot] = s[i];
       this.activity[slot] = a[i];
@@ -197,6 +211,7 @@ export class CityLive {
     this.idOf.length = 0;
     this.live.fill(0);
     this.building.fill(-1);
+    this.fromBuilding.fill(-1);
     this.free = [];
     this.count = 0;
   }
@@ -240,7 +255,13 @@ export class CityLive {
     tier.set(this.tier);
     const live = new Uint8Array(next);
     live.set(this.live);
+    const fromBuilding = new Int32Array(next).fill(-1);
+    fromBuilding.set(this.fromBuilding);
+    const movedAt = new Float64Array(next);
+    movedAt.set(this.movedAt);
 
+    this.fromBuilding = fromBuilding;
+    this.movedAt = movedAt;
     this.building = building;
     this.source = source;
     this.activity = activity;
@@ -256,6 +277,17 @@ export class CityLive {
 
   isDerived(slot: number): boolean {
     return this.source[slot] === SOURCE.DERIVED;
+  }
+
+  /** 0 while a person is still at their old address, 1 once they have arrived. */
+  travel(slot: number, now: number, durationMs: number): number {
+    if (this.fromBuilding[slot] < 0) return 1;
+    const t = (now - this.movedAt[slot]) / durationMs;
+    if (t >= 1) {
+      this.fromBuilding[slot] = -1;
+      return 1;
+    }
+    return t < 0 ? 0 : t;
   }
 
   slotFromId(personId: string): number | undefined {

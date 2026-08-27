@@ -21,6 +21,7 @@ from hydra.kernel.clock import TICKS_PER_DAY  # noqa: E402
 from hydra.kernel.config import WorldConfig  # noqa: E402
 from hydra.kernel.kernelstate import KernelDomainState  # noqa: E402
 from hydra.persistence.filestore import FileStore  # noqa: E402
+from hydra.persistence.store import ControlState  # noqa: E402
 from hydra.world import create_world  # noqa: E402
 from hydra.world.scenarios import run_scenario  # noqa: E402
 
@@ -72,6 +73,23 @@ def main() -> int:
         f"ran {total_ticks} ticks in {elapsed:.1f}s "
         f"({elapsed / max(1, total_ticks) * 1000:.0f} ms/tick), final hash {runtime.state.state_hash()}"
     )
+
+    if store is not None:
+        # Publish the world as the worker would, and leave a control record for it to find.
+        # Without these a persisted run is invisible: the API falls back to the genesis
+        # snapshot and reports tick 0, and the worker has nothing to act on, so the city
+        # looks frozen at midnight on its first day for reasons nothing explains.
+        store.write_live(runtime.kernel.snapshot())
+        store.put_control(
+            ControlState(
+                world_id=args.world_id,
+                timeline_id=runtime.state.meta.timeline_id,
+                mode="paused",
+                speed=4.0,
+                note="created by scripts/run_world.py",
+            )
+        )
+        print(f"world {args.world_id} / {runtime.state.meta.timeline_id} ready at tick {runtime.state.meta.tick}")
     return 0
 
 
