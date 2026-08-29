@@ -48,9 +48,17 @@ export default function Controls({
   const speed = control?.speed ?? 4;
 
   return (
-    <div className="card">
-      <h3>Run control</h3>
-      <div className="row">
+    <div className="card control-card simulation-control-card">
+      <div className="control-card-header">
+        <span className="control-index">02</span>
+        <div>
+          <h3>Simulation control</h3>
+          <p>Move time or inject a deterministic pressure.</p>
+        </div>
+        <span className={mode === "running" ? "control-state is-live" : "control-state"}>{mode}</span>
+      </div>
+      <div className="simulation-row">
+        <span className="control-row-label">CLOCK</span>
         <button
           className={mode === "running" ? "primary" : ""}
           disabled={busy || !worldId}
@@ -64,22 +72,23 @@ export default function Controls({
         <button disabled={busy || !worldId} onClick={() => send({ step_ticks: 144 })}>
           Step 1 day
         </button>
-        <span className="muted">speed</span>
-        <select
-          value={String(speed)}
-          disabled={busy || !worldId}
-          onChange={(event) => send({ speed: Number(event.target.value) })}
-        >
-          <option value="1">1 tick/s</option>
-          <option value="4">4 ticks/s</option>
-          <option value="12">12 ticks/s</option>
-          <option value="48">48 ticks/s</option>
-          <option value="0">as fast as possible</option>
-        </select>
-        <span className="pill">{mode}</span>
+        <label className="speed-field">
+          <span>Speed</span>
+          <select
+            value={String(speed)}
+            disabled={busy || !worldId}
+            onChange={(event) => send({ speed: Number(event.target.value) })}
+          >
+            <option value="1">1 tick/s</option>
+            <option value="4">4 ticks/s</option>
+            <option value="12">12 ticks/s</option>
+            <option value="48">48 ticks/s</option>
+            <option value="0">maximum</option>
+          </select>
+        </label>
       </div>
-      <div className="row" style={{ marginTop: 10 }}>
-        <span className="muted">scenario</span>
+      <div className="simulation-row simulation-row--scenario">
+        <span className="control-row-label">PRESSURE</span>
         <button disabled={busy || !worldId} onClick={() => scenario("plant_failure", { loss: 0.4 })}>
           Plant −40%
         </button>

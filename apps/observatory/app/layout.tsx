@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
-import Nav from "@/components/Nav";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
-  title: "Hydra World — Observatory",
-  description: "Read-first observatory for the Hydra World simulation"
+  title: "Hydra World — Command Observatory",
+  description: "Live command surface for the deterministic Hydra World simulation"
 };
 
 /**
@@ -43,10 +44,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <div className="shell">
-          <Nav />
-          <main className="main">{children}</main>
-        </div>
+        <Suspense
+          fallback={(
+            <div className="shell shell--observatory">
+              <main className="main">{children}</main>
+            </div>
+          )}
+        >
+          <AppShell>{children}</AppShell>
+        </Suspense>
       </body>
     </html>
   );

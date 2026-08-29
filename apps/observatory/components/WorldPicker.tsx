@@ -6,11 +6,13 @@ import { apiGet, apiPost, Json } from "@/lib/api";
 export default function WorldPicker({
   worldId,
   timelineId,
-  onSelect
+  onSelect,
+  variant = "legacy"
 }: {
   worldId: string;
   timelineId: string;
   onSelect: (world: string, timeline: string) => void;
+  variant?: "legacy" | "command";
 }) {
   const [worlds, setWorlds] = useState<Json[]>([]);
   const [timelines, setTimelines] = useState<Json[]>([]);
@@ -56,31 +58,79 @@ export default function WorldPicker({
     }
   }
 
-  return (
-    <div className="card">
-      <h3>World</h3>
-      <div className="row">
-        <select value={worldId} onChange={(event) => onSelect(event.target.value, "tl_zero")}>
-          <option value="">— select —</option>
-          {worlds.map((world) => (
-            <option key={world.world_id} value={world.world_id}>
-              {world.world_id} (seed {world.seed})
-            </option>
-          ))}
-        </select>
-        <select value={timelineId} onChange={(event) => onSelect(worldId, event.target.value)}>
-          {(timelines.length ? timelines : [{ timeline_id: "tl_zero", label: "Timeline Zero" }]).map((t) => (
-            <option key={t.timeline_id} value={t.timeline_id}>
-              {t.timeline_id} {t.label ? `— ${t.label}` : ""}
-            </option>
-          ))}
-        </select>
+  if (variant === "legacy") {
+    return (
+      <div className="card">
+        <h3>World</h3>
+        <div className="row">
+          <select value={worldId} onChange={(event) => onSelect(event.target.value, "tl_zero")}>
+            <option value="">— select —</option>
+            {worlds.map((world) => (
+              <option key={world.world_id} value={world.world_id}>
+                {world.world_id} (seed {world.seed})
+              </option>
+            ))}
+          </select>
+          <select value={timelineId} onChange={(event) => onSelect(worldId, event.target.value)}>
+            {(timelines.length ? timelines : [{ timeline_id: "tl_zero", label: "Timeline Zero" }]).map((t) => (
+              <option key={t.timeline_id} value={t.timeline_id}>
+                {t.timeline_id} {t.label ? `— ${t.label}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="row" style={{ marginTop: 10 }}>
+          <span className="muted">new world seed</span>
+          <input value={seed} onChange={(event) => setSeed(event.target.value)} style={{ width: 120 }} />
+          <button className="primary" disabled={busy} onClick={createWorld}>
+            {busy ? "creating…" : "Genesis"}
+          </button>
+        </div>
+        {error ? <div className="error" style={{ marginTop: 8 }}>{error}</div> : null}
       </div>
-      <div className="row" style={{ marginTop: 10 }}>
-        <span className="muted">new world seed</span>
-        <input value={seed} onChange={(event) => setSeed(event.target.value)} style={{ width: 120 }} />
+    );
+  }
+
+  return (
+    <div className="card control-card world-picker-card">
+      <div className="control-card-header">
+        <span className="control-index">01</span>
+        <div>
+          <h3>World coordinates</h3>
+          <p>Choose the canonical world and timeline.</p>
+        </div>
+        <span className="control-state">SOURCE</span>
+      </div>
+      <div className="control-fields">
+        <label>
+          <span>World instance</span>
+          <select value={worldId} onChange={(event) => onSelect(event.target.value, "tl_zero")}>
+            <option value="">— select —</option>
+            {worlds.map((world) => (
+              <option key={world.world_id} value={world.world_id}>
+                {world.world_id} (seed {world.seed})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Timeline</span>
+          <select value={timelineId} onChange={(event) => onSelect(worldId, event.target.value)}>
+            {(timelines.length ? timelines : [{ timeline_id: "tl_zero", label: "Timeline Zero" }]).map((t) => (
+              <option key={t.timeline_id} value={t.timeline_id}>
+                {t.timeline_id} {t.label ? `— ${t.label}` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="genesis-row">
+        <label>
+          <span>New world seed</span>
+          <input value={seed} onChange={(event) => setSeed(event.target.value)} inputMode="numeric" />
+        </label>
         <button className="primary" disabled={busy} onClick={createWorld}>
-          {busy ? "creating…" : "Genesis"}
+          {busy ? "CREATING…" : "RUN GENESIS"}
         </button>
       </div>
       {error ? <div className="error" style={{ marginTop: 8 }}>{error}</div> : null}

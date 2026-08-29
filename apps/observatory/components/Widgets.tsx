@@ -6,15 +6,18 @@ export function Stat({
   label,
   value,
   hint,
-  tone
+  tone,
+  accent = "cyan"
 }: {
   label: string;
   value: string | number;
   hint?: string;
   tone?: "good" | "bad" | "warn";
+  accent?: "cyan" | "violet" | "magenta" | "amber" | "green" | "blue";
 }) {
   return (
-    <div className="card stat">
+    <div className="card stat" data-accent={accent}>
+      <span className="stat-signal" aria-hidden="true" />
       <div className="label">{label}</div>
       <div className={`value ${tone ?? ""}`}>{value}</div>
       {hint ? <div className="delta muted">{hint}</div> : null}
@@ -49,7 +52,8 @@ export function Spark({
     })
     .join(" ");
   return (
-    <svg width={width} height={height} role="img" aria-label="trend">
+    <svg className="sparkline" width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label="trend">
+      <path d={`M0,${height - 1} H${width}`} fill="none" stroke="var(--line)" strokeWidth="1" />
       <path d={path} fill="none" stroke={colour} strokeWidth="1.4" />
     </svg>
   );
