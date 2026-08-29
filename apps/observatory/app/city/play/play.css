@@ -23,6 +23,7 @@
 }
 .play-topbar h2 { margin: 1px 0 0; font-size: 14px; letter-spacing: .14em; }
 .play-kicker { color: var(--play-cyan); font-size: 9px; letter-spacing: .19em; }
+.play-city-scale { margin-top: 2px; color: #62758c; font-size: 8px; letter-spacing: .12em; }
 .play-actions { display: flex; gap: 7px; align-items: center; }
 .play-actions button.active { color: var(--play-turq); border-color: rgba(0,240,200,.55); }
 .play-back { border: 1px solid #263041; border-radius: 4px; padding: 5px 9px; font-size: 10px; letter-spacing: .08em; }
@@ -47,7 +48,23 @@
 .play-minimap svg { display: block; width: 100%; aspect-ratio: 1; transform: scaleY(-1); }
 .minimap-title { color: var(--play-cyan); font-size: 9px; letter-spacing: .15em; margin-bottom: 5px; }
 .minimap-bound { fill: rgba(8,13,21,.82); stroke: rgba(95,120,150,.45); stroke-width: .7; }
+.minimap-district { stroke-width: .35; fill-opacity: .14; stroke-opacity: .7; }
+.minimap-road { stroke: rgba(200,220,235,.42); stroke-width: .42; vector-effect: non-scaling-stroke; }
 .minimap-player { fill: #fff; stroke: var(--play-cyan); stroke-width: 1.2; filter: drop-shadow(0 0 2px #39e6ff); }
+.district-0 { color: #39e6ff; fill: #39e6ff; stroke: #39e6ff; background: #39e6ff; }
+.district-1 { color: #b44dff; fill: #b44dff; stroke: #b44dff; background: #b44dff; }
+.district-2 { color: #00f0c8; fill: #00f0c8; stroke: #00f0c8; background: #00f0c8; }
+.district-3 { color: #ffc247; fill: #ffc247; stroke: #ffc247; background: #ffc247; }
+.district-4 { color: #ff4d7d; fill: #ff4d7d; stroke: #ff4d7d; background: #ff4d7d; }
+.district-5 { color: #7f8cff; fill: #7f8cff; stroke: #7f8cff; background: #7f8cff; }
+.district-6 { color: #5de06f; fill: #5de06f; stroke: #5de06f; background: #5de06f; }
+.district-7 { color: #f47cff; fill: #f47cff; stroke: #f47cff; background: #f47cff; }
+.play-districts { position: absolute; z-index: 11; left: 16px; bottom: 24px; width: min(390px, 42vw); padding: 10px 12px; background: rgba(4,7,13,.8); border: 1px solid rgba(57,230,255,.2); backdrop-filter: blur(7px); }
+.district-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 13px; }
+.district-item { display: grid; grid-template-columns: 7px 1fr auto; align-items: center; gap: 6px; min-width: 0; color: #d4dfec; font-size: 9px; letter-spacing: .04em; }
+.district-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.district-item small { color: #52667d; font-size: 7px; text-transform: uppercase; }
+.district-dot { display: block; width: 6px; height: 6px; border-radius: 50%; box-shadow: 0 0 8px currentColor; }
 .play-graffiti { position: absolute; z-index: 7; left: 34%; bottom: 28px; color: rgba(180,77,255,.22); font-size: clamp(24px, 4vw, 58px); font-weight: 900; letter-spacing: -.08em; transform: rotate(-7deg) skewX(-12deg); text-shadow: 3px 2px 0 rgba(57,230,255,.08); pointer-events: none; user-select: none; }
 .mobile-controls { display: none; position: absolute; z-index: 15; left: 0; right: 0; bottom: 20px; padding: 0 22px; pointer-events: none; justify-content: space-between; align-items: end; }
 .mobile-joy { width: 118px; height: 118px; border-radius: 50%; border: 1px solid rgba(57,230,255,.4); background: rgba(4,8,14,.45); position: relative; pointer-events: auto; touch-action: none; box-shadow: inset 0 0 30px rgba(57,230,255,.05); }
@@ -60,6 +77,7 @@
   .play-topbar { grid-template-columns: 1fr auto; height: auto; min-height: 64px; }
   .play-world-picker { display: none; }
   .play-actions { justify-self: end; }
+  .play-actions button { padding-left: 7px; padding-right: 7px; font-size: 9px; }
   .play-actions .play-back { display: none; }
   .play-stage { height: calc(100vh - 64px); min-height: 560px; }
   .play-hud { top: 10px; width: calc(50% - 15px); padding: 8px 9px; }
@@ -68,6 +86,7 @@
   .hud-controls { display: none; }
   .mobile-controls { display: flex; }
   .play-minimap { right: 10px; bottom: 150px; width: 132px; }
+  .play-districts { left: 10px; bottom: 150px; width: min(350px, calc(100% - 168px)); }
   .play-graffiti { display: none; }
   .play-interact { bottom: 155px; }
 }
@@ -78,4 +97,6 @@
   .play-hud-left { width: calc(100% - 20px); max-width: none; }
   .play-hud-left .hud-row:nth-of-type(n+4) { display: none; }
   .play-minimap { display: none; }
+  .play-districts { display: none; }
+  .play-city-scale { display: none; }
 }
