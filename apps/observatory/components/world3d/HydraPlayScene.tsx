@@ -1,13 +1,15 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import type { CityLive, CityModel } from "@/lib/city/state";
 import { hourOf } from "@/lib/city/state";
 import { clampToCity, collidesWithBuilding, type PlayLayout, type PlayTarget } from "@/lib/world3d/adapter";
 import { consumeInteract, moveAxes, playInput } from "@/lib/world3d/input";
+
+import HydraCityFabric from "./HydraCityFabric";
 
 export interface PlayTelemetry {
   x: number;
@@ -25,79 +27,11 @@ interface Props {
   onAdvance: (target: PlayTarget) => void;
   onTelemetry: (telemetry: PlayTelemetry) => void;
   quality: "low" | "high";
+  viewMode: "overview" | "follow";
 }
 
 const dummy = new THREE.Object3D();
 const tmpColor = new THREE.Color();
-
-function Ground({ model }: { model: CityModel }) {
-  const b = model.wire.bounds;
-  const width = b.max_x - b.min_x;
-  const depth = b.max_y - b.min_y;
-  return (
-    <mesh position={[(b.min_x + b.max_x) / 2, -0.18, (b.min_y + b.max_y) / 2]} receiveShadow>
-      <boxGeometry args={[width + 80, 0.3, depth + 80]} />
-      <meshStandardMaterial color="#05070b" roughness={0.9} metalness={0.1} />
-    </mesh>
-  );
-}
-
-function Roads({ model }: { model: CityModel }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  useLayoutEffect(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    for (let i = 0; i < model.segmentCount; i += 1) {
-      const o = i * 4;
-      const ax = model.streetLines[o];
-      const az = model.streetLines[o + 1];
-      const bx = model.streetLines[o + 2];
-      const bz = model.streetLines[o + 3];
-      const dx = bx - ax;
-      const dz = bz - az;
-      const length = Math.max(1, Math.hypot(dx, dz));
-      dummy.position.set((ax + bx) / 2, 0.02, (az + bz) / 2);
-      dummy.rotation.set(0, -Math.atan2(dz, dx), 0);
-      dummy.scale.set(length, 0.12, Math.max(3, model.streetWidth[i]));
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-  }, [model]);
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, model.segmentCount]} receiveShadow>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="#121923" roughness={0.64} metalness={0.32} />
-    </instancedMesh>
-  );
-}
-
-function Buildings({ model }: { model: CityModel }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  useLayoutEffect(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    for (let i = 0; i < model.buildings.length; i += 1) {
-      const building = model.buildings[i];
-      dummy.position.set(building.x, building.height / 2, building.y);
-      dummy.rotation.set(0, -building.angle, 0);
-      dummy.scale.set(building.width, Math.max(2.5, building.height), building.depth);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-      const hue = (building.district * 0.071 + (building.kind.length % 7) * 0.019) % 1;
-      tmpColor.setHSL(0.55 + hue * 0.12, 0.22, 0.13 + (building.floors % 4) * 0.018);
-      mesh.setColorAt(i, tmpColor);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [model]);
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, model.buildings.length]} castShadow receiveShadow>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial vertexColors roughness={0.54} metalness={0.28} emissive="#060a10" emissiveIntensity={0.45} />
-    </instancedMesh>
-  );
-}
 
 function Population({ model, live }: { model: CityModel; live: CityLive | null }) {
   const ref = useRef<THREE.InstancedMesh>(null);
@@ -186,15 +120,23 @@ function Targets({ layout, objectiveIndex }: { layout: PlayLayout; objectiveInde
   );
 }
 
+function stableUnit(index: number, salt: number): number {
+  let value = Math.imul(index + 1, 0x45d9f3b) ^ Math.imul(salt + 17, 0x27d4eb2d);
+  value ^= value >>> 16;
+  value = Math.imul(value, 0x45d9f3b);
+  value ^= value >>> 16;
+  return (value >>> 0) / 0xffffffff;
+}
+
 function Rain({ player, quality }: { player: React.RefObject<THREE.Group | null>; quality: "low" | "high" }) {
   const count = quality === "high" ? 900 : 320;
   const points = useRef<THREE.Points>(null);
   const positions = useMemo(() => {
     const values = new Float32Array(count * 3);
     for (let i = 0; i < count; i += 1) {
-      values[i * 3] = (Math.random() - 0.5) * 220;
-      values[i * 3 + 1] = Math.random() * 110 + 5;
-      values[i * 3 + 2] = (Math.random() - 0.5) * 220;
+      values[i * 3] = (stableUnit(i, 1) - 0.5) * 220;
+      values[i * 3 + 1] = stableUnit(i, 2) * 110 + 5;
+      values[i * 3 + 2] = (stableUnit(i, 3) - 0.5) * 220;
     }
     return values;
   }, [count]);
@@ -220,9 +162,9 @@ function Rain({ player, quality }: { player: React.RefObject<THREE.Group | null>
   );
 }
 
-function PlayerDriver({ model, layout, objectiveIndex, onAdvance, onTelemetry, quality }: Omit<Props, "live" | "simTime">) {
+function PlayerDriver({ model, layout, objectiveIndex, onAdvance, onTelemetry, quality, viewMode }: Omit<Props, "live" | "simTime">) {
   const player = useRef<THREE.Group>(null);
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const telemAccumulator = useRef(0);
   const position = useRef(new THREE.Vector3(layout.spawn.x, 0.3, layout.spawn.z));
   const velocity = useRef(new THREE.Vector2());
@@ -266,11 +208,20 @@ function PlayerDriver({ model, layout, objectiveIndex, onAdvance, onTelemetry, q
     const distance = target ? Math.hypot(pos.x - target.x, pos.z - target.z) : Number.POSITIVE_INFINITY;
     if (target && distance < 10 && consumeInteract()) onAdvance(target);
 
-    const desiredCamera = new THREE.Vector3(pos.x + 115, 145, pos.z + 115);
+    const bounds = model.wire.bounds;
+    const centreX = (bounds.min_x + bounds.max_x) * 0.5;
+    const centreZ = (bounds.min_y + bounds.max_y) * 0.5;
+    const span = Math.max(bounds.max_x - bounds.min_x, bounds.max_y - bounds.min_y);
+    const overview = viewMode === "overview";
+    const desiredCamera = overview
+      ? new THREE.Vector3(centreX + span * 0.72, span * 0.92, centreZ + span * 0.72)
+      : new THREE.Vector3(pos.x + 115, 145, pos.z + 115);
     camera.position.lerp(desiredCamera, 1 - Math.exp(-dt * 5.5));
-    camera.lookAt(pos.x, 0, pos.z);
+    camera.lookAt(overview ? centreX : pos.x, 0, overview ? centreZ : pos.z);
     if (camera instanceof THREE.OrthographicCamera) {
-      camera.zoom += ((quality === "high" ? 1.9 : 1.65) - camera.zoom) * (1 - Math.exp(-dt * 4));
+      const overviewZoom = Math.min(size.width, size.height) / Math.max(1, span * 1.42);
+      const targetZoom = overview ? overviewZoom : (quality === "high" ? 1.9 : 1.65);
+      camera.zoom += (targetZoom - camera.zoom) * (1 - Math.exp(-dt * 4));
       camera.updateProjectionMatrix();
     }
 
@@ -289,32 +240,67 @@ function PlayerDriver({ model, layout, objectiveIndex, onAdvance, onTelemetry, q
   );
 }
 
-function Scene({ model, live, simTime, layout, objectiveIndex, onAdvance, onTelemetry, quality }: Props) {
+function Scene({ model, live, simTime, layout, objectiveIndex, onAdvance, onTelemetry, quality, viewMode }: Props) {
   const hour = hourOf(simTime);
   const daylight = Math.max(0, Math.sin(((hour - 6) / 12) * Math.PI));
   const sky = daylight * 0.38 + 0.08;
+  const b = model.wire.bounds;
+  const span = Math.max(b.max_x - b.min_x, b.max_y - b.min_y);
+  const overview = viewMode === "overview";
   return (
     <>
-      <fog attach="fog" args={["#05070c", 180, quality === "high" ? 760 : 520]} />
-      <ambientLight intensity={0.18 + sky * 0.5} />
-      <directionalLight position={[120, 220, 80]} intensity={0.45 + daylight * 1.4} color={daylight > 0.25 ? "#dce9ff" : "#7285b8"} castShadow={quality === "high"} />
+      <color attach="background" args={[daylight > 0.18 ? "#09111e" : "#02040a"]} />
+      <fog
+        attach="fog"
+        args={[
+          daylight > 0.18 ? "#09111e" : "#03050b",
+          overview ? span * 0.72 : 180,
+          overview ? span * 2.35 : (quality === "high" ? 920 : 620)
+        ]}
+      />
+      <hemisphereLight args={[daylight > 0.25 ? "#9fbbe1" : "#394d78", "#08070c", 0.24 + sky * 0.6]} />
+      <ambientLight intensity={0.16 + sky * 0.42} />
+      <directionalLight
+        position={[120, 260, 80]}
+        intensity={0.55 + daylight * 1.55}
+        color={daylight > 0.25 ? "#dce9ff" : "#7285b8"}
+        castShadow={quality === "high" && !overview}
+      />
       <pointLight position={[layout.spawn.x, 28, layout.spawn.z]} color="#b44dff" intensity={18} distance={100} />
-      <Ground model={model} />
-      <Roads model={model} />
-      <Buildings model={model} />
+      <HydraCityFabric model={model} live={live} hour={hour} quality={quality} />
       <Population model={model} live={live} />
       <Targets layout={layout} objectiveIndex={objectiveIndex} />
-      <PlayerDriver model={model} layout={layout} objectiveIndex={objectiveIndex} onAdvance={onAdvance} onTelemetry={onTelemetry} quality={quality} />
+      <PlayerDriver
+        model={model}
+        layout={layout}
+        objectiveIndex={objectiveIndex}
+        onAdvance={onAdvance}
+        onTelemetry={onTelemetry}
+        quality={quality}
+        viewMode={viewMode}
+      />
     </>
   );
 }
 
 export default function HydraPlayScene(props: Props) {
+  const bounds = props.model.wire.bounds;
+  const centreX = (bounds.min_x + bounds.max_x) * 0.5;
+  const centreZ = (bounds.min_y + bounds.max_y) * 0.5;
+  const span = Math.max(bounds.max_x - bounds.min_x, bounds.max_y - bounds.min_y);
+  const overview = props.viewMode === "overview";
   return (
     <Canvas
       className="play-canvas"
       orthographic
-      camera={{ position: [props.layout.spawn.x + 115, 145, props.layout.spawn.z + 115], zoom: 1.7, near: 0.1, far: 3000 }}
+      camera={{
+        position: overview
+          ? [centreX + span * 0.72, span * 0.92, centreZ + span * 0.72]
+          : [props.layout.spawn.x + 115, 145, props.layout.spawn.z + 115],
+        zoom: overview ? 0.1 : 1.7,
+        near: 0.1,
+        far: Math.max(3000, span * 5)
+      }}
       dpr={props.quality === "high" ? [1, 1.6] : [0.75, 1]}
       gl={{ antialias: props.quality === "high", powerPreference: "high-performance" }}
       shadows={props.quality === "high"}
