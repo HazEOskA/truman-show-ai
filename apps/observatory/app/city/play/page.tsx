@@ -23,6 +23,7 @@ export default function CityPlayPage() {
   const [objectiveIndex, setObjectiveIndex] = useState(0);
   const [telemetry, setTelemetry] = useState<PlayTelemetry>(EMPTY_TELEMETRY);
   const [quality, setQuality] = useState<"low" | "high">("high");
+  const [viewMode, setViewMode] = useState<"overview" | "follow">("overview");
   const [toast, setToast] = useState("WAKE THE CITY // podejdź do celu i naciśnij E");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -57,9 +58,20 @@ export default function CityPlayPage() {
         <div>
           <div className="play-kicker">HYDRA WORLD // LIVE GAME VIEW</div>
           <h2>SEKTOR: {model?.wire.city_id ?? "—"}</h2>
+          {model && (
+            <div className="play-city-scale">
+              {model.wire.districts.length} DISTRICTS · {model.buildings.length} BUILDINGS · {model.segmentCount} STREETS
+            </div>
+          )}
         </div>
         <div className="play-world-picker"><WorldPicker worldId={worldId} timelineId={timelineId} onSelect={select} /></div>
         <div className="play-actions">
+          <button
+            className={viewMode === "overview" ? "active" : ""}
+            onClick={() => setViewMode((value) => value === "overview" ? "follow" : "overview")}
+          >
+            {viewMode === "overview" ? "CITY OVERVIEW" : "FOLLOW OSA"}
+          </button>
           <button className={quality === "high" ? "active" : ""} onClick={() => setQuality((value) => value === "high" ? "low" : "high")}>QUALITY {quality}</button>
           <Link className="play-back" href="/city">ANALYTIC CITY VIEW</Link>
         </div>
@@ -78,6 +90,7 @@ export default function CityPlayPage() {
             onAdvance={advance}
             onTelemetry={setTelemetry}
             quality={quality}
+            viewMode={viewMode}
           />
         )}
 
@@ -99,6 +112,7 @@ export default function CityPlayPage() {
         </section>
 
         {model && layout && <MiniMap model={model} layout={layout} telemetry={telemetry} />}
+        {model && viewMode === "overview" && <DistrictLegend model={model} />}
         <div className="play-graffiti" aria-hidden>OSA // HYDRA</div>
         <div className={telemetry.nearTarget ? "play-interact visible" : "play-interact"}>E // INTERACT</div>
         {toast && <div className="play-toast">{toast}</div>}
@@ -120,11 +134,50 @@ function MiniMap({ model, layout, telemetry }: { model: CityModel; layout: PlayL
       <div className="minimap-title">LIVE MAP</div>
       <svg viewBox="0 0 100 100" role="img" aria-label="Hydra live minimap">
         <rect x="1" y="1" width="98" height="98" rx="3" className="minimap-bound" />
+        {model.wire.districts.map((district, index) => {
+          const points: string[] = [];
+          for (let i = 0; i < district.polygon.length; i += 2) {
+            points.push(`${px(district.polygon[i])},${py(district.polygon[i + 1])}`);
+          }
+          return <polygon key={district.id} points={points.join(" ")} className={`minimap-district district-${index % 8}`} />;
+        })}
+        {Array.from({ length: model.segmentCount }, (_, index) => index)
+          .filter((index) => model.streetKlass[index] === 0)
+          .map((index) => {
+            const offset = index * 4;
+            return (
+              <line
+                key={`street:${index}`}
+                x1={px(model.streetLines[offset])}
+                y1={py(model.streetLines[offset + 1])}
+                x2={px(model.streetLines[offset + 2])}
+                y2={py(model.streetLines[offset + 3])}
+                className="minimap-road"
+              />
+            );
+          })}
         {layout.targets.map((target) => (
           <circle key={target.id} cx={px(target.x)} cy={py(target.z)} r="2.2" fill={target.color} opacity="0.8" />
         ))}
         <circle cx={px(telemetry.x)} cy={py(telemetry.z)} r="2.8" className="minimap-player" />
       </svg>
+    </div>
+  );
+}
+
+function DistrictLegend({ model }: { model: CityModel }) {
+  return (
+    <div className="play-districts" aria-label="Hydra districts">
+      <div className="minimap-title">HYDRA // 8 DISTRICTS</div>
+      <div className="district-grid">
+        {model.wire.districts.map((district, index) => (
+          <div key={district.id} className="district-item">
+            <i className={`district-dot district-${index % 8}`} />
+            <span>{district.name}</span>
+            <small>{district.kind}</small>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
