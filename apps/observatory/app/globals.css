@@ -11,6 +11,24 @@
   --bad: #f16a70;
   --good: #6ad19a;
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /**
+   * The head-up palette.
+   *
+   * The Observatory's analytic pages are deliberately quiet -- they are read for minutes at
+   * a time. The Laboratory and MISSION 01 are read for seconds, over a moving city, by
+   * somebody standing up, so they need a louder register. These tokens are that register,
+   * declared once here rather than twice in two stylesheets, because the point of the lab
+   * and the mission looking alike is that they are one instrument.
+   */
+  --hud-cyan: #39e6ff;
+  --hud-turq: #00f0c8;
+  --hud-violet: #b44dff;
+  --hud-amber: #ffc14d;
+  --hud-red: #ff3355;
+  --hud-dim: #7c8da4;
+  --hud-line: rgba(57, 230, 255, 0.22);
+  --hud-glass: rgba(4, 7, 13, 0.82);
 }
 
 * { box-sizing: border-box; }
@@ -54,6 +72,14 @@ a:hover { text-decoration: underline; }
 }
 .nav a:hover { color: var(--text); background: var(--panel-2); text-decoration: none; }
 .nav a.active { color: var(--accent); border-left: 2px solid var(--accent); background: var(--panel-2); }
+.nav-section { margin-bottom: 12px; }
+.nav-title {
+  display: block; padding: 0 16px 4px; color: #4d5768;
+  font-size: 8.5px; letter-spacing: 0.22em; text-transform: uppercase;
+}
+/* The Lab is the front door, so its links read as the loud pair the rest are not. */
+.nav-section:first-child a { color: var(--text); }
+.nav-section:first-child a.active { color: var(--hud-cyan); border-left-color: var(--hud-cyan); }
 
 .main { flex: 1; padding: 18px 22px 60px; max-width: 1600px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }

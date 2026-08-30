@@ -32,7 +32,10 @@ Builds a world if there is not one already, then starts the API, the simulation 
 the Observatory together, with every import path wired for you. Works the same on Windows,
 macOS and Linux; Ctrl-C stops all three.
 
-Then open **<http://localhost:3000/city>**.
+Then open **<http://localhost:3000/lab>** — the Laboratory. It is the front door: it shows
+which world is loaded and the four values that identify it, launches the missions, and lists
+the claims each mission is evidence for. **City View** (<http://localhost:3000/city>) is the
+analytic city itself if you would rather start there.
 
 Useful flags: `--fresh` rebuilds the world, `--days 3` simulates further before serving,
 `--no-web` runs the backend alone, `--api-port` / `--web-port` move the ports.
@@ -69,11 +72,24 @@ docker compose up
 * Observatory — <http://localhost:3000>
 * API docs — <http://localhost:8000/docs>
 
-In the Observatory: pick a seed → **Genesis** → **Run**. **City View** draws the city itself —
-every building on its plot, every person in the building the world says they are in. Then walk
-the rest: the people, a single person's beliefs, the firms, the markets, city hall, the front
-pages, the research graph, the ledger, the causal graph, and the timeline where you can fork
-the world.
+In the Observatory: pick a seed → **Genesis** → **Run**.
+
+**Laboratory** (`/lab`) is the bench. Six missions run against the world you have loaded:
+`MISSION 01 · WAKE THE CITY` walks the architecture ring by ring and opens the live evidence
+for each claim at the building it belongs to; four more drop a shock into the city — a plant
+failure, a cold snap, a supply cut, a repair — and hand you the view where the consequence
+turns up; the last forks the timeline for a controlled experiment.
+
+**City View** draws the city itself — every building on its plot, every person in the building
+the world says they are in. **Map 3D** looks down on the same geometry with any data layer
+painted onto the ground it belongs to. Then walk the rest: the people, a single person's
+beliefs, the firms, the markets, city hall, the front pages, the research graph, the ledger,
+the causal graph, and the timeline where you can fork the world.
+
+One note for a live demo: `/state` summarises fifty thousand residents on every call and takes
+the API a few seconds, and the read model reloads whenever the clock moves. A world running at
+48 ticks/s will keep every view waiting on it. Run the demo at 1–4 ticks/s, or paused — the
+missions read a paused world perfectly well, and the city is far more responsive.
 
 ---
 

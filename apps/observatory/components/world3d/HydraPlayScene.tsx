@@ -1,9 +1,23 @@
 "use client";
 
+/**
+ * The mission's viewport.
+ *
+ * Everything structural — ground, districts, streets, cubes, dots, light — comes from
+ * `CityLayers`, which is the same geometry the Map view draws. What this file adds is only
+ * what a *mission* needs on top of a city: the agent, the station pylons, the camera that
+ * follows, and an autopilot.
+ *
+ * The autopilot exists for the jury. A demo that requires the person judging it to be good
+ * at WASD is a demo about WASD; with autopilot on, the agent walks its own route and the
+ * jury reads. Keys still work at any moment and quietly take over.
+ */
+
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { CityBuildings, CityCitizens, CityGround, CityLight, CityStreets, DistrictPlates, LandUse } from "@/components/world3d/CityLayers";
 import type { CityLive, CityModel } from "@/lib/city/state";
 import { hourOf } from "@/lib/city/state";
 import { clampToCity, collidesWithBuilding, type PlayLayout, type PlayTarget } from "@/lib/world3d/adapter";
@@ -13,6 +27,7 @@ export interface PlayTelemetry {
   x: number;
   z: number;
   speed: number;
+  distance: number;
   nearTarget: string | null;
 }
 
@@ -22,163 +37,164 @@ interface Props {
   simTime: string;
   layout: PlayLayout;
   objectiveIndex: number;
+  /** True while a dossier is open: the agent holds position and the camera drifts closer. */
+  paused: boolean;
+  autopilot: boolean;
   onAdvance: (target: PlayTarget) => void;
   onTelemetry: (telemetry: PlayTelemetry) => void;
   quality: "low" | "high";
 }
 
-const dummy = new THREE.Object3D();
-const tmpColor = new THREE.Color();
+/** How close the agent must be for a station to accept it. */
+const REACH = 14;
 
-function Ground({ model }: { model: CityModel }) {
-  const b = model.wire.bounds;
-  const width = b.max_x - b.min_x;
-  const depth = b.max_y - b.min_y;
-  return (
-    <mesh position={[(b.min_x + b.max_x) / 2, -0.18, (b.min_y + b.max_y) / 2]} receiveShadow>
-      <boxGeometry args={[width + 80, 0.3, depth + 80]} />
-      <meshStandardMaterial color="#05070b" roughness={0.9} metalness={0.1} />
-    </mesh>
-  );
-}
-
-function Roads({ model }: { model: CityModel }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  useLayoutEffect(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    for (let i = 0; i < model.segmentCount; i += 1) {
-      const o = i * 4;
-      const ax = model.streetLines[o];
-      const az = model.streetLines[o + 1];
-      const bx = model.streetLines[o + 2];
-      const bz = model.streetLines[o + 3];
-      const dx = bx - ax;
-      const dz = bz - az;
-      const length = Math.max(1, Math.hypot(dx, dz));
-      dummy.position.set((ax + bx) / 2, 0.02, (az + bz) / 2);
-      dummy.rotation.set(0, -Math.atan2(dz, dx), 0);
-      dummy.scale.set(length, 0.12, Math.max(3, model.streetWidth[i]));
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
+/**
+ * Autopilot steering.
+ *
+ * A straight line at the next station walks the agent into the first wall between here and
+ * there and holds it against it, which on a jury's screen looks exactly like a bug. So the
+ * heading is probed a short way ahead and, when it is blocked, fanned out to either side
+ * until something is clear. It is not a path finder and does not need to be: the route
+ * already runs along streets, and this only has to get round the corner of a block.
+ */
+function steer(
+  model: CityModel,
+  pos: { x: number; z: number },
+  target: { x: number; z: number }
+): { x: number; z: number } {
+  const length = Math.max(1, Math.hypot(target.x - pos.x, target.z - pos.z));
+  const ax = (target.x - pos.x) / length;
+  const az = (target.z - pos.z) / length;
+  const probe = 18;
+  if (!collidesWithBuilding(model, pos.x + ax * probe, pos.z + az * probe, 3.2)) {
+    return { x: ax, z: az };
+  }
+  for (const angle of [0.6, -0.6, 1.15, -1.15, 1.7, -1.7, 2.3, -2.3]) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const nx = ax * cos - az * sin;
+    const nz = ax * sin + az * cos;
+    if (!collidesWithBuilding(model, pos.x + nx * probe, pos.z + nz * probe, 3.2)) {
+      return { x: nx, z: nz };
     }
-    mesh.instanceMatrix.needsUpdate = true;
-  }, [model]);
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, model.segmentCount]} receiveShadow>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="#121923" roughness={0.64} metalness={0.32} />
-    </instancedMesh>
-  );
+  }
+  return { x: ax, z: az };
 }
 
-function Buildings({ model }: { model: CityModel }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  useLayoutEffect(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    for (let i = 0; i < model.buildings.length; i += 1) {
-      const building = model.buildings[i];
-      dummy.position.set(building.x, building.height / 2, building.y);
-      dummy.rotation.set(0, -building.angle, 0);
-      dummy.scale.set(building.width, Math.max(2.5, building.height), building.depth);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-      const hue = (building.district * 0.071 + (building.kind.length % 7) * 0.019) % 1;
-      tmpColor.setHSL(0.55 + hue * 0.12, 0.22, 0.13 + (building.floors % 4) * 0.018);
-      mesh.setColorAt(i, tmpColor);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [model]);
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, model.buildings.length]} castShadow receiveShadow>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial vertexColors roughness={0.54} metalness={0.28} emissive="#060a10" emissiveIntensity={0.45} />
-    </instancedMesh>
-  );
-}
+// -- the agent --------------------------------------------------------------------------
 
-function Population({ model, live }: { model: CityModel; live: CityLive | null }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  const lastTick = useRef(-2);
-
-  useFrame(() => {
-    const mesh = ref.current;
-    if (!mesh || !live || live.tick === lastTick.current) return;
-    lastTick.current = live.tick;
-    let shown = 0;
-    for (let slot = 0; slot < live.count && shown < 6000; slot += 1) {
-      if (!live.live[slot]) continue;
-      const buildingIndex = live.building[slot];
-      if (buildingIndex < 0 || buildingIndex >= model.buildings.length) continue;
-      const building = model.buildings[buildingIndex];
-      const seed = ((slot + 1) * 2654435761) >>> 0;
-      const jx = (((seed & 1023) / 1023) - 0.5) * Math.min(7, building.width * 0.45);
-      const jz = ((((seed >>> 10) & 1023) / 1023) - 0.5) * Math.min(7, building.depth * 0.45);
-      dummy.position.set(building.x + jx, building.height + 1.1 + (slot % 3) * 0.2, building.y + jz);
-      dummy.rotation.set(0, 0, 0);
-      dummy.scale.setScalar(live.isDerived(slot) ? 0.7 : 0.95);
-      dummy.updateMatrix();
-      mesh.setMatrixAt(shown, dummy.matrix);
-      mesh.setColorAt(shown, tmpColor.set(live.isDerived(slot) ? "#7d64ff" : "#48f5d0"));
-      shown += 1;
-    }
-    mesh.count = shown;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  });
-
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, 6000]} frustumCulled={false}>
-      <sphereGeometry args={[0.75, 6, 5]} />
-      <meshBasicMaterial vertexColors transparent opacity={0.85} />
-    </instancedMesh>
-  );
-}
-
-function WaspAgent() {
+/**
+ * OSA — the audit drone.
+ *
+ * A wasp, because the operator's callsign is one, and because a small fast thing with an
+ * obvious front reads at this camera distance where a humanoid would be four grey pixels.
+ */
+function WaspAgent({ moving }: { moving: boolean }) {
   const wings = useRef<THREE.Group>(null);
+  const body = useRef<THREE.Group>(null);
   useFrame((state) => {
-    if (!wings.current) return;
-    const flap = Math.sin(state.clock.elapsedTime * 24) * 0.28;
-    wings.current.children.forEach((child, index) => {
+    const flap = Math.sin(state.clock.elapsedTime * (moving ? 30 : 18)) * 0.3;
+    wings.current?.children.forEach((child, index) => {
       child.rotation.z = (index === 0 ? 1 : -1) * (0.5 + flap);
     });
+    if (body.current) {
+      body.current.position.y = Math.sin(state.clock.elapsedTime * 3.2) * 0.28;
+      body.current.rotation.x = moving ? 0.22 : 0.05;
+    }
   });
   return (
-    <group scale={2.4}>
-      <mesh position={[0, 1.5, 0]} castShadow><sphereGeometry args={[0.55, 12, 9]} /><meshStandardMaterial color="#ffcb22" roughness={0.32} metalness={0.42} /></mesh>
-      <mesh position={[0, 0.7, 0.15]} castShadow><sphereGeometry args={[0.7, 12, 9]} /><meshStandardMaterial color="#151318" roughness={0.42} metalness={0.55} /></mesh>
-      <mesh position={[0, -0.05, 0.3]} rotation={[0.8, 0, 0]} castShadow><coneGeometry args={[0.48, 1.5, 10]} /><meshStandardMaterial color="#f6a700" roughness={0.36} metalness={0.35} /></mesh>
+    <group scale={2.4} ref={body}>
+      <mesh position={[0, 1.5, 0]}><sphereGeometry args={[0.55, 12, 9]} /><meshStandardMaterial color="#ffcb22" roughness={0.32} metalness={0.42} /></mesh>
+      <mesh position={[0, 0.7, 0.15]}><sphereGeometry args={[0.7, 12, 9]} /><meshStandardMaterial color="#151318" roughness={0.42} metalness={0.55} /></mesh>
+      <mesh position={[0, -0.05, 0.3]} rotation={[0.8, 0, 0]}><coneGeometry args={[0.48, 1.5, 10]} /><meshStandardMaterial color="#f6a700" roughness={0.36} metalness={0.35} /></mesh>
       <mesh position={[-0.21, 1.7, 0.48]}><sphereGeometry args={[0.11, 8, 6]} /><meshBasicMaterial color="#39e6ff" /></mesh>
       <mesh position={[0.21, 1.7, 0.48]}><sphereGeometry args={[0.11, 8, 6]} /><meshBasicMaterial color="#39e6ff" /></mesh>
       <group ref={wings} position={[0, 0.9, -0.15]}>
         <mesh position={[-0.55, 0, 0]} rotation={[0.2, 0.1, 0.6]}><boxGeometry args={[1.25, 0.05, 0.55]} /><meshPhysicalMaterial color="#c9f8ff" transparent opacity={0.36} roughness={0.1} transmission={0.35} /></mesh>
         <mesh position={[0.55, 0, 0]} rotation={[0.2, -0.1, -0.6]}><boxGeometry args={[1.25, 0.05, 0.55]} /><meshPhysicalMaterial color="#c9f8ff" transparent opacity={0.36} roughness={0.1} transmission={0.35} /></mesh>
       </group>
+      <pointLight position={[0, 1.4, 0]} color="#ffd06a" intensity={9} distance={46} />
     </group>
   );
 }
 
-function Targets({ layout, objectiveIndex }: { layout: PlayLayout; objectiveIndex: number }) {
+// -- stations ---------------------------------------------------------------------------
+
+/** A station's code, drawn to a canvas and hung in the air above its pylon. */
+function CodeLabel({ text, colour, y }: { text: string; colour: string; y: number }) {
+  const texture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.font = "700 76px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = colour;
+      ctx.shadowColor = colour;
+      ctx.shadowBlur = 26;
+      ctx.fillText(text, 256, 68);
+    }
+    const map = new THREE.CanvasTexture(canvas);
+    map.anisotropy = 4;
+    return map;
+  }, [text, colour]);
+
+  useEffect(() => () => texture.dispose(), [texture]);
+
+  return (
+    <sprite position={[0, y, 0]} scale={[36, 9, 1]}>
+      <spriteMaterial map={texture} transparent depthWrite={false} depthTest={false} />
+    </sprite>
+  );
+}
+
+/**
+ * The pylons.
+ *
+ * Three states, readable from across the city: the station you are heading to burns and
+ * pulses, the ones you have logged are quiet green rings, the ones ahead are faint outlines.
+ * Nothing here is decoration — it is the mission's progress bar, drawn into the world.
+ */
+function Stations({ layout, objectiveIndex }: { layout: PlayLayout; objectiveIndex: number }) {
+  const pulse = useRef<THREE.Group>(null);
+  useFrame((state) => {
+    if (!pulse.current) return;
+    const t = (state.clock.elapsedTime % 2) / 2;
+    pulse.current.scale.setScalar(1 + t * 1.7);
+    const material = (pulse.current.children[0] as THREE.Mesh)?.material as THREE.MeshBasicMaterial;
+    if (material) material.opacity = 0.55 * (1 - t);
+  });
+
   return (
     <>
       {layout.targets.map((target, index) => {
         const active = index === objectiveIndex;
         const done = index < objectiveIndex;
+        const colour = done ? "#3f8f6a" : target.colour;
         return (
-          <group key={target.id} position={[target.x, 0.08, target.z]}>
+          <group key={target.id} position={[target.x, 0.2, target.z]}>
             <mesh rotation={[-Math.PI / 2, 0, 0]}>
-              <ringGeometry args={[active ? 4.2 : 2.2, active ? 5 : 2.7, 40]} />
-              <meshBasicMaterial color={done ? "#1f6c5d" : target.color} transparent opacity={active ? 0.95 : 0.28} depthWrite={false} />
+              <ringGeometry args={[active ? 8 : 4.4, active ? 9.4 : 5.1, 48]} />
+              <meshBasicMaterial color={colour} transparent opacity={active ? 0.95 : done ? 0.5 : 0.24} depthWrite={false} />
             </mesh>
             {active && (
-              <mesh position={[0, 6, 0]}>
-                <cylinderGeometry args={[0.16, 0.55, 12, 10]} />
-                <meshBasicMaterial color={target.color} transparent opacity={0.28} depthWrite={false} blending={THREE.AdditiveBlending} />
-              </mesh>
+              <>
+                <mesh position={[0, 34, 0]}>
+                  <cylinderGeometry args={[0.5, 3.4, 68, 12, 1, true]} />
+                  <meshBasicMaterial color={colour} transparent opacity={0.2} depthWrite={false} side={THREE.DoubleSide} blending={THREE.AdditiveBlending} />
+                </mesh>
+                <group ref={pulse}>
+                  <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                    <ringGeometry args={[9.4, 10.6, 48]} />
+                    <meshBasicMaterial color={colour} transparent opacity={0.5} depthWrite={false} />
+                  </mesh>
+                </group>
+                <pointLight position={[0, 16, 0]} color={colour} intensity={26} distance={130} />
+              </>
             )}
+            <CodeLabel text={done ? `${target.station.code} ✓` : target.station.code} colour={colour} y={active ? 78 : 26} />
           </group>
         );
       })}
@@ -186,15 +202,17 @@ function Targets({ layout, objectiveIndex }: { layout: PlayLayout; objectiveInde
   );
 }
 
+// -- weather ----------------------------------------------------------------------------
+
 function Rain({ player, quality }: { player: React.RefObject<THREE.Group | null>; quality: "low" | "high" }) {
   const count = quality === "high" ? 900 : 320;
   const points = useRef<THREE.Points>(null);
   const positions = useMemo(() => {
     const values = new Float32Array(count * 3);
     for (let i = 0; i < count; i += 1) {
-      values[i * 3] = (Math.random() - 0.5) * 220;
-      values[i * 3 + 1] = Math.random() * 110 + 5;
-      values[i * 3 + 2] = (Math.random() - 0.5) * 220;
+      values[i * 3] = (Math.random() - 0.5) * 260;
+      values[i * 3 + 1] = Math.random() * 120 + 5;
+      values[i * 3 + 2] = (Math.random() - 0.5) * 260;
     }
     return values;
   }, [count]);
@@ -206,7 +224,7 @@ function Rain({ player, quality }: { player: React.RefObject<THREE.Group | null>
     const array = obj.geometry.attributes.position.array as Float32Array;
     for (let i = 0; i < count; i += 1) {
       array[i * 3 + 1] -= dt * 95;
-      if (array[i * 3 + 1] < 0) array[i * 3 + 1] += 115;
+      if (array[i * 3 + 1] < 0) array[i * 3 + 1] += 125;
     }
     obj.position.set(anchor.position.x, 0, anchor.position.z);
     obj.geometry.attributes.position.needsUpdate = true;
@@ -215,17 +233,30 @@ function Rain({ player, quality }: { player: React.RefObject<THREE.Group | null>
   return (
     <points ref={points}>
       <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /></bufferGeometry>
-      <pointsMaterial color="#9ec7ff" size={0.38} transparent opacity={0.52} depthWrite={false} />
+      <pointsMaterial color="#9ec7ff" size={0.42} transparent opacity={0.42} depthWrite={false} />
     </points>
   );
 }
 
-function PlayerDriver({ model, layout, objectiveIndex, onAdvance, onTelemetry, quality }: Omit<Props, "live" | "simTime">) {
+// -- driving ----------------------------------------------------------------------------
+
+function PlayerDriver({
+  model,
+  layout,
+  objectiveIndex,
+  paused,
+  autopilot,
+  onAdvance,
+  onTelemetry,
+  quality
+}: Omit<Props, "live" | "simTime">) {
   const player = useRef<THREE.Group>(null);
   const { camera } = useThree();
-  const telemAccumulator = useRef(0);
+  const telemetry = useRef(0);
   const position = useRef(new THREE.Vector3(layout.spawn.x, 0.3, layout.spawn.z));
   const velocity = useRef(new THREE.Vector2());
+  const movingRef = useRef(false);
+  const arrivedAt = useRef<string | null>(null);
 
   useEffect(() => {
     position.current.set(layout.spawn.x, 0.3, layout.spawn.z);
@@ -233,19 +264,28 @@ function PlayerDriver({ model, layout, objectiveIndex, onAdvance, onTelemetry, q
 
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.05);
-    const axes = moveAxes();
-    const moving = Math.hypot(axes.x, axes.z) > 0.02;
-    const maxSpeed = playInput.sprint ? 78 : 46;
-    const desiredX = axes.x * maxSpeed;
-    const desiredZ = axes.z * maxSpeed;
-    const response = 1 - Math.exp(-dt * 8.5);
-    velocity.current.x += (desiredX - velocity.current.x) * response;
-    velocity.current.y += (desiredZ - velocity.current.y) * response;
-    if (!moving) {
-      velocity.current.multiplyScalar(Math.exp(-dt * 7));
-    }
-
+    const target = layout.targets[objectiveIndex] ?? null;
     const pos = position.current;
+    const distance = target ? Math.hypot(pos.x - target.x, pos.z - target.z) : Number.POSITIVE_INFINITY;
+
+    const manual = moveAxes();
+    const driving = Math.hypot(manual.x, manual.z) > 0.02;
+    let axes = manual;
+
+    // Autopilot never fights the operator: the moment a key is held, manual input wins.
+    if (!driving && autopilot && target && !paused && distance > REACH * 0.55) {
+      axes = steer(model, pos, target);
+    }
+    if (paused) axes = { x: 0, z: 0 };
+
+    const moving = Math.hypot(axes.x, axes.z) > 0.02;
+    movingRef.current = moving;
+    const maxSpeed = playInput.sprint ? 82 : autopilot && !driving ? 52 : 46;
+    const response = 1 - Math.exp(-dt * 8.5);
+    velocity.current.x += (axes.x * maxSpeed - velocity.current.x) * response;
+    velocity.current.y += (axes.z * maxSpeed - velocity.current.y) * response;
+    if (!moving) velocity.current.multiplyScalar(Math.exp(-dt * 7));
+
     const nextX = pos.x + velocity.current.x * dt;
     if (!collidesWithBuilding(model, nextX, pos.z)) pos.x = nextX;
     else velocity.current.x = 0;
@@ -258,53 +298,76 @@ function PlayerDriver({ model, layout, objectiveIndex, onAdvance, onTelemetry, q
 
     if (player.current) {
       player.current.position.copy(pos);
-      const speed = velocity.current.length();
-      if (speed > 2) player.current.rotation.y = Math.atan2(velocity.current.x, velocity.current.y);
+      if (velocity.current.length() > 2) {
+        player.current.rotation.y = Math.atan2(velocity.current.x, velocity.current.y);
+      }
     }
 
-    const target = layout.targets[objectiveIndex] ?? null;
-    const distance = target ? Math.hypot(pos.x - target.x, pos.z - target.z) : Number.POSITIVE_INFINITY;
-    if (target && distance < 10 && consumeInteract()) onAdvance(target);
+    // Arrival. Manual play still asks for E; autopilot logs the station itself, once —
+    // `arrivedAt` is what stops it from re-triggering while the dossier is open.
+    if (target && distance < REACH && !paused) {
+      const wanted = consumeInteract();
+      const auto = autopilot && arrivedAt.current !== target.id;
+      if (wanted || auto) {
+        arrivedAt.current = target.id;
+        onAdvance(target);
+      }
+    } else {
+      consumeInteract();
+    }
 
-    const desiredCamera = new THREE.Vector3(pos.x + 115, 145, pos.z + 115);
-    camera.position.lerp(desiredCamera, 1 - Math.exp(-dt * 5.5));
+    // Camera. Isometric and high while walking, lower and closer while reading a dossier:
+    // the city stays the backdrop of the argument rather than disappearing behind a panel.
+    const zoomTo = (quality === "high" ? 1.9 : 1.65) * (paused ? 1.45 : 1);
+    const lift = paused ? 0.72 : 1;
+    const desired = new THREE.Vector3(pos.x + 115 * lift, 145 * lift, pos.z + 115 * lift);
+    camera.position.lerp(desired, 1 - Math.exp(-dt * (paused ? 2.4 : 5.5)));
     camera.lookAt(pos.x, 0, pos.z);
     if (camera instanceof THREE.OrthographicCamera) {
-      camera.zoom += ((quality === "high" ? 1.9 : 1.65) - camera.zoom) * (1 - Math.exp(-dt * 4));
+      camera.zoom += (zoomTo - camera.zoom) * (1 - Math.exp(-dt * 3));
       camera.updateProjectionMatrix();
     }
 
-    telemAccumulator.current += dt;
-    if (telemAccumulator.current >= 0.1) {
-      telemAccumulator.current = 0;
-      onTelemetry({ x: pos.x, z: pos.z, speed: velocity.current.length(), nearTarget: target && distance < 10 ? target.id : null });
+    telemetry.current += dt;
+    if (telemetry.current >= 0.12) {
+      telemetry.current = 0;
+      onTelemetry({
+        x: pos.x,
+        z: pos.z,
+        speed: velocity.current.length(),
+        distance: Number.isFinite(distance) ? distance : 0,
+        nearTarget: target && distance < REACH ? target.id : null
+      });
     }
   });
 
   return (
     <>
-      <group ref={player} position={[layout.spawn.x, 0.3, layout.spawn.z]}><WaspAgent /></group>
+      <group ref={player} position={[layout.spawn.x, 0.3, layout.spawn.z]}>
+        <WaspAgent moving={movingRef.current} />
+      </group>
       <Rain player={player} quality={quality} />
     </>
   );
 }
 
-function Scene({ model, live, simTime, layout, objectiveIndex, onAdvance, onTelemetry, quality }: Props) {
+// -- scene ------------------------------------------------------------------------------
+
+function Scene(props: Props) {
+  const { model, live, simTime, quality } = props;
   const hour = hourOf(simTime);
-  const daylight = Math.max(0, Math.sin(((hour - 6) / 12) * Math.PI));
-  const sky = daylight * 0.38 + 0.08;
+  const high = quality === "high";
   return (
     <>
-      <fog attach="fog" args={["#05070c", 180, quality === "high" ? 760 : 520]} />
-      <ambientLight intensity={0.18 + sky * 0.5} />
-      <directionalLight position={[120, 220, 80]} intensity={0.45 + daylight * 1.4} color={daylight > 0.25 ? "#dce9ff" : "#7285b8"} castShadow={quality === "high"} />
-      <pointLight position={[layout.spawn.x, 28, layout.spawn.z]} color="#b44dff" intensity={18} distance={100} />
-      <Ground model={model} />
-      <Roads model={model} />
-      <Buildings model={model} />
-      <Population model={model} live={live} />
-      <Targets layout={layout} objectiveIndex={objectiveIndex} />
-      <PlayerDriver model={model} layout={layout} objectiveIndex={objectiveIndex} onAdvance={onAdvance} onTelemetry={onTelemetry} quality={quality} />
+      <CityLight model={model} hour={hour} fogNear={320} fogFar={high ? 1600 : 1000} />
+      <CityGround model={model} />
+      <DistrictPlates model={model} />
+      <LandUse model={model} />
+      <CityStreets model={model} />
+      <CityBuildings model={model} live={live} hour={hour} />
+      <CityCitizens model={model} live={live} max={high ? 6000 : 2200} />
+      <Stations layout={props.layout} objectiveIndex={props.objectiveIndex} />
+      <PlayerDriver {...props} />
     </>
   );
 }
@@ -314,10 +377,9 @@ export default function HydraPlayScene(props: Props) {
     <Canvas
       className="play-canvas"
       orthographic
-      camera={{ position: [props.layout.spawn.x + 115, 145, props.layout.spawn.z + 115], zoom: 1.7, near: 0.1, far: 3000 }}
+      camera={{ position: [props.layout.spawn.x + 115, 145, props.layout.spawn.z + 115], zoom: 1.7, near: 0.1, far: 6000 }}
       dpr={props.quality === "high" ? [1, 1.6] : [0.75, 1]}
       gl={{ antialias: props.quality === "high", powerPreference: "high-performance" }}
-      shadows={props.quality === "high"}
     >
       <Scene {...props} />
     </Canvas>
