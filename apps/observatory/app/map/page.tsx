@@ -317,6 +317,24 @@ function MapControls({ model }: { model: CityModel }) {
     let lastX = 0;
     let lastY = 0;
 
+    /**
+     * Where a screen offset from the centre lands on the ground.
+     *
+     * Both panning and zooming need this, and both get it wrong in a way that is immediately
+     * obvious without it: the horizontal screen axis is the camera's right vector, but the
+     * vertical one is its forward vector *foreshortened by the pitch*, so a drag downwards
+     * covers more ground at a shallow angle than at a steep one. Dividing by `sin(pitch)` is
+     * what keeps the ground under the cursor.
+     */
+    const groundOffset = (dx: number, dy: number) => {
+      const v = view.current;
+      const sin = Math.sin(v.azimuth);
+      const cos = Math.cos(v.azimuth);
+      const across = dx / v.zoom;
+      const along = dy / (v.zoom * Math.max(0.2, Math.sin(v.pitch)));
+      return { x: cos * across + sin * along, z: -sin * across + cos * along };
+    };
+
     const down = (event: PointerEvent) => {
       if (event.button !== 0 && event.button !== 1 && event.button !== 2) return;
       dragging = true;
@@ -333,13 +351,9 @@ function MapControls({ model }: { model: CityModel }) {
       lastY = event.clientY;
       const v = view.current;
       if (panning) {
-        // Panning happens in the ground plane, along the direction the camera is facing, so
-        // dragging right always moves the city right no matter how far it has been turned.
-        const scale = 1 / v.zoom;
-        const cos = Math.cos(v.azimuth);
-        const sin = Math.sin(v.azimuth);
-        v.target.x -= (dx * cos - dy * sin) * scale;
-        v.target.z -= (dx * sin + dy * cos) * scale;
+        const offset = groundOffset(dx, dy);
+        v.target.x -= offset.x;
+        v.target.z -= offset.z;
       } else {
         v.azimuth -= dx * 0.006;
         v.pitch = Math.max(0.18, Math.min(1.5, v.pitch + dy * 0.005));
@@ -350,10 +364,30 @@ function MapControls({ model }: { model: CityModel }) {
       panning = false;
       if (element.hasPointerCapture(event.pointerId)) element.releasePointerCapture(event.pointerId);
     };
+
+    /**
+     * Zoom toward the cursor, not toward the middle.
+     *
+     * Zooming on the camera's centre is how you end up magnifying an empty field: Hydra's
+     * built-up quarters sit in clusters with kilometres of nothing between them, and the
+     * centre of the city is one of the gaps. Anchoring on the pointer means the block you
+     * are looking at is the block you get.
+     */
     const wheel = (event: WheelEvent) => {
       event.preventDefault();
       const v = view.current;
-      v.zoom = Math.max(0.04, Math.min(14, v.zoom * Math.exp(-event.deltaY * 0.0014)));
+      const rect = element.getBoundingClientRect();
+      const offset = groundOffset(
+        event.clientX - (rect.left + rect.width / 2),
+        event.clientY - (rect.top + rect.height / 2)
+      );
+      const anchorX = v.target.x + offset.x;
+      const anchorZ = v.target.z + offset.z;
+      const next = Math.max(0.04, Math.min(20, v.zoom * Math.exp(-event.deltaY * 0.0014)));
+      const keep = v.zoom / next;
+      v.target.x = anchorX - (anchorX - v.target.x) * keep;
+      v.target.z = anchorZ - (anchorZ - v.target.z) * keep;
+      v.zoom = next;
     };
     const menu = (event: MouseEvent) => event.preventDefault();
 
