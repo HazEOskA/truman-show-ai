@@ -1,2 +1,4 @@
+# The worker is the process that actually consults the model: agent brains run in the tick loop.
 psycopg[binary]==3.2.3
 redis==5.2.1
+google-genai==2.20.0

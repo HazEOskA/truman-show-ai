@@ -98,8 +98,12 @@ class LLMConfig:
 
     enabled: bool = False
     provider: str = "disabled"
-    small_model: str = "claude-haiku-4-5-20251001"
-    large_model: str = "claude-sonnet-5"
+    # Gemini 3.5 Flash on both rungs of the ladder. The escalation thresholds below still
+    # decide *whether* a model is consulted at all; what changes with importance is the
+    # budget spent, not the vendor. Defaults stay `disabled` because a world must run to
+    # completion with no provider configured — the determinism tests require exactly that.
+    small_model: str = "gemini-3.5-flash"
+    large_model: str = "gemini-3.5-flash"
     daily_calls_per_agent: int = 6
     token_budget_per_agent: int = 12_000
     escalation_importance: float = 0.6

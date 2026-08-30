@@ -1,8 +1,9 @@
 """LLM provider adapters (rule 35.11: the provider must be an adapter).
 
 Three real implementations ship: one that declines (the default, used whenever no provider is
-configured) and two that talk to a hosted API. None of them is a mock — the declining adapter
-is a policy, and the world is designed to run entirely on rules when it is active.
+configured) and two that talk to a hosted API — Anthropic over plain HTTPS, Gemini through
+Google's official GenAI SDK. None of them is a mock — the declining adapter is a policy, and
+the world is designed to run entirely on rules when it is active.
 
 Adding a provider means adding a class here and a line in `build_adapter`, and nothing else:
 the gateway above knows only this protocol, and the kernel below never learns a model was
@@ -17,7 +18,7 @@ import os
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class LLMUnavailable(RuntimeError):
@@ -107,73 +108,104 @@ class AnthropicAdapter:
 
 
 class GeminiAdapter:
-    """Talks to Google's Generative Language API over HTTPS.
+    """Talks to Gemini through Google's official GenAI SDK (`google-genai`).
 
-    Same shape as the Anthropic adapter and deliberately so. Two differences are worth
-    knowing because they are easy to get wrong:
+    The SDK rather than raw HTTP, and deliberately: it is the supported client, it resolves
+    credentials the way Google Cloud expects, and it is what makes this a Google-framework
+    integration rather than somebody's hand-rolled POST to a URL.
 
-    * the system prompt is its own top-level field (`system_instruction`), not a message, so
-      an agent's instructions cannot be confused with its observations;
-    * a response can come back with no `parts` at all when the model declines. That is not an
-      error condition to paper over -- it is reported as unavailable, and the agent falls
-      back to its rules exactly as it would if the network were down.
+    Two credential paths, because a laptop and Cloud Run want different things:
+
+    * an API key (``GEMINI_API_KEY`` / ``GOOGLE_API_KEY``) — the Gemini API, for local runs;
+    * Vertex AI, when ``GOOGLE_GENAI_USE_VERTEXAI`` is set — the SDK then resolves project,
+      location and Application Default Credentials by itself, which is exactly what a Cloud
+      Run service already has and means no key has to be minted or mounted at all.
+
+    Three things about the call are load-bearing:
+
+    * the system prompt goes in ``system_instruction``, a field of its own, so an agent's
+      instructions can never be confused with its observations;
+    * ``response_mime_type="application/json"`` constrains the model to the one JSON action
+      object the gateway parses, instead of asking politely in the prompt and hoping;
+    * **every** provider failure becomes :class:`LLMUnavailable`. The SDK raises a wide family
+      of errors — API, transport, quota, auth — and none of them may reach the tick loop. An
+      agent whose model is unreachable falls back to its rules, which is the same behaviour as
+      having no provider configured at all. A simulation that stops because a network hiccuped
+      would not be a simulation.
     """
 
     name = "gemini"
 
-    def __init__(
-        self,
-        api_key: str | None = None,
-        *,
-        base_url: str = "https://generativelanguage.googleapis.com",
-        timeout: float = 30.0,
-    ) -> None:
+    def __init__(self, api_key: str | None = None, *, timeout: float | None = None) -> None:
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")
-        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
-        self.enabled = bool(self.api_key)
+        self._client: Any = None
+        self._types: Any = None
+        self.enabled = False
+        self.mode = "unconfigured"
+
+        # Imported here, not at module scope. Hydra's supported default is to run with no
+        # provider at all, and that path must not require a Google package to be installed.
+        try:
+            from google import genai
+            from google.genai import types
+        except ImportError:
+            self.mode = "sdk-missing"
+            return
+
+        use_vertex = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").strip().lower() in {"1", "true", "yes"}
+        try:
+            if self.api_key:
+                self._client = genai.Client(api_key=self.api_key)
+                self.mode = "api-key"
+            elif use_vertex:
+                self._client = genai.Client()          # project / location / ADC from the environment
+                self.mode = "vertex"
+            else:
+                self.mode = "no-credentials"
+                return
+        except Exception:                              # noqa: BLE001 - see the class docstring
+            self._client = None
+            self.mode = "client-init-failed"
+            return
+
+        self._types = types
+        self.enabled = True
 
     def complete(self, *, system: str, prompt: str, model: str, max_tokens: int) -> LLMResponse:
-        if not self.enabled:
-            raise LLMUnavailable("GEMINI_API_KEY is not set")
-        payload = json.dumps(
-            {
-                "system_instruction": {"parts": [{"text": system}]},
-                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                # The gateway asks for one JSON action object, so the model is told to return
-                # JSON rather than asked politely in the prompt and hoped for.
-                "generationConfig": {
-                    "maxOutputTokens": max_tokens,
-                    "temperature": 0.4,
-                    "responseMimeType": "application/json",
-                },
-            }
-        ).encode("utf-8")
-        request = urllib.request.Request(
-            f"{self.base_url}/v1beta/models/{model}:generateContent",
-            data=payload,
-            headers={"content-type": "application/json", "x-goog-api-key": self.api_key},
-            method="POST",
-        )
+        if not self.enabled or self._client is None:
+            raise LLMUnavailable(f"gemini adapter is not configured ({self.mode})")
+
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                body = json.loads(response.read().decode("utf-8"))
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+            response = self._client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=self._types.GenerateContentConfig(
+                    system_instruction=system,
+                    max_output_tokens=max_tokens,
+                    temperature=0.4,
+                    response_mime_type="application/json",
+                ),
+            )
+        except Exception as exc:                       # noqa: BLE001 - see the class docstring
             raise LLMUnavailable(f"provider call failed: {exc}") from exc
 
-        candidates = body.get("candidates") or []
-        parts = (candidates[0].get("content", {}).get("parts", []) if candidates else [])
-        text = "".join(part.get("text", "") for part in parts if "text" in part)
+        # `.text` is a convenience over the candidate parts and raises rather than returning
+        # empty when the model produced none, so the refusal case is handled here as a normal
+        # outcome instead of an exception escaping into the tick.
+        try:
+            text = (response.text or "").strip()
+        except Exception:                              # noqa: BLE001 - see the class docstring
+            text = ""
         if not text:
-            reason = (candidates[0].get("finishReason") if candidates else None) or "no candidates"
-            raise LLMUnavailable(f"gemini returned no text ({reason})")
+            raise LLMUnavailable("gemini returned no usable text")
 
-        usage = body.get("usageMetadata", {})
+        usage = getattr(response, "usage_metadata", None)
         return LLMResponse(
             text=text,
-            model=body.get("modelVersion", model),
-            input_tokens=int(usage.get("promptTokenCount", 0)),
-            output_tokens=int(usage.get("candidatesTokenCount", 0)),
+            model=getattr(response, "model_version", None) or model,
+            input_tokens=int(getattr(usage, "prompt_token_count", 0) or 0),
+            output_tokens=int(getattr(usage, "candidates_token_count", 0) or 0),
         )
 
 

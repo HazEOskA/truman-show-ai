@@ -201,17 +201,54 @@ gcloud run deploy hydra-observatory \
   --set-env-vars="HYDRA_API_URL=$API_URL"
 
 # Worker — exactly one, CPU always on, never reachable from outside.
+# This is the process that consults Gemini: agent brains run inside the tick loop, so the
+# model credentials belong here and nowhere else. The API and the Observatory never hold them.
 gcloud run deploy hydra-worker \
   --image=$REGION-docker.pkg.dev/$PROJECT/hydra/worker:latest \
   --region=$REGION --no-allow-unauthenticated \
   --memory=1Gi --cpu=1 \
   --min-instances=1 --max-instances=1 --no-cpu-throttling \
   --add-cloudsql-instances=$SQL_INSTANCE \
-  --set-secrets="HYDRA_DATABASE_URL=$SECRET" \
+  --set-secrets="HYDRA_DATABASE_URL=$SECRET,GEMINI_API_KEY=gemini-api-key:latest" \
   --set-env-vars="HYDRA_LIVE_EVERY_TICKS=6"
 ```
 
 Tighten `HYDRA_CORS_ORIGINS` to the Observatory's URL once you know it.
+
+## Letting the agents think
+
+The world runs on rules with no provider configured, and that is the supported default. To
+put Gemini behind the most important agents' decisions, the worker needs a credential and the
+world needs its LLM section switched on.
+
+Create the secret once, and let the worker's service account read it:
+
+```bash
+printf '%s' "$GEMINI_API_KEY" | gcloud secrets create gemini-api-key --data-file=-
+gcloud secrets add-iam-policy-binding gemini-api-key \
+  --member="serviceAccount:$WORKER_SA" --role=roles/secretmanager.secretAccessor
+```
+
+**Or no key at all.** The adapter uses Google's GenAI SDK, so on Cloud Run it can reach Gemini
+through Vertex AI with the service account the container already has — nothing to mint, mount
+or rotate:
+
+```bash
+gcloud run services update hydra-worker --region=$REGION \
+  --set-env-vars="GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=$PROJECT,GOOGLE_CLOUD_LOCATION=$REGION"
+```
+
+Either way the world's config has to enable it — `llm.enabled = true`, `llm.provider =
+"gemini"` — and the models default to `gemini-3.5-flash`.
+
+Two things worth being clear about before you demonstrate this:
+
+* **A world with Gemini on does not replay to the same state hash.** The LLM section is
+  excluded from `config_hash` on purpose, so the determinism tests stay green, but a model
+  answers differently on different runs. Determinism and model-driven agents are two separate
+  runs, and presenting them as one would be a claim this repository does not make.
+* **The provider can never break the world.** Every failure — bad key, quota, timeout, a
+  refusal — degrades that one agent to its rules for that one tick. The city keeps running.
 
 ---
 
