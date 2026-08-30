@@ -11,8 +11,7 @@
  * a mission is a scenario queued on the control channel plus a view worth watching while it
  * lands. If the world is paused, the mission says so rather than pretending to run.
  *
- * Narration is Polish, because the jury is; instrument labels and identifiers stay English,
- * because the API, the ledger and the rest of the Observatory are.
+ * The competition interface is English-first, matching the API, ledger and Observatory.
  */
 
 export type MissionKind = "walkthrough" | "shock" | "experiment";
@@ -36,6 +35,8 @@ export interface LabMission {
   href: string;
   cta: string;
   colour: string;
+  /** Environmental artwork used as the mission card's visual anchor. */
+  image: string;
 }
 
 export const MISSIONS: LabMission[] = [
@@ -46,13 +47,14 @@ export const MISSIONS: LabMission[] = [
     kind: "walkthrough",
     duration: "5–7 min",
     summary:
-      "Audyt architektury w formie przejścia przez miasto. Sześć stacji, sześć tez — na każdej dowód czytany na żywo z działającej symulacji. Autopilot prowadzi, jury czyta.",
+      "An architecture audit as a walk through the city. Six stations, six claims — each one backed by evidence read live from the running simulation. Autopilot drives; the jury reads.",
     proves:
-      "Że to nie jest scena zbudowana pod demo: jądro, genesis, agenci, gospodarka, informacja i historia to osobne warstwy, a każda ma test, który ją pilnuje.",
-    watch: ["kolejność pierścieni: RING 0 → RING 4", "hash stanu i hash konfiguracji", "observed / derived w panelu obecności"],
+      "This is not a scene built for a demo: kernel, genesis, agents, economy, information and history are independent layers, each guarded by a test.",
+    watch: ["ring order: RING 0 → RING 4", "state hash and configuration hash", "observed / derived presence"],
     href: "/city/play",
-    cta: "ODPAL MISJĘ",
-    colour: "#39e6ff"
+    cta: "START MISSION",
+    colour: "#39e6ff",
+    image: "/ChatGPT Image 30 sie 2026, 05_59_03 (1).png"
   },
   {
     id: "blackout",
@@ -61,14 +63,15 @@ export const MISSIONS: LabMission[] = [
     kind: "shock",
     duration: "3–5 min",
     summary:
-      "Elektrownia traci 40% mocy. Nikt nie mówi miastu, co ma dalej zrobić — łańcuch układa się sam, ogniwo po ogniwie, w kolejnych fazach ticku.",
+      "The power plant loses 40% of its output. Nobody tells the city what to do next — the chain assembles itself, link by link, across successive tick phases.",
     proves:
-      "Że łańcuch prąd → koszt → cena → cięcie produkcji → zwolnienia → nagłówki → nastroje → polityka nie jest nigdzie zapisany jako skrypt. Zepsuj jeden generator, a reszta i tak się wydarzy.",
-    watch: ["cena energii i CPI", "gotówka i zatrudnienie w firmach", "pierwsze strony: jedno zdarzenie, kilka narracji", "unrest i poparcie rządu"],
+      "The power → cost → price → production cuts → layoffs → headlines → sentiment → policy chain is not scripted anywhere. Break one generator and the rest still emerges.",
+    watch: ["energy price and CPI", "company cash and employment", "one event across multiple front pages", "unrest and government approval"],
     scenario: { name: "plant_failure", params: { loss: 0.4 } },
     href: "/city",
-    cta: "WYWOŁAJ AWARIĘ",
-    colour: "#ff7a3d"
+    cta: "TRIGGER FAILURE",
+    colour: "#ff7a3d",
+    image: "/ChatGPT Image 30 sie 2026, 05_59_04 (2).png"
   },
   {
     id: "coldsnap",
@@ -77,14 +80,15 @@ export const MISSIONS: LabMission[] = [
     kind: "shock",
     duration: "3–4 min",
     summary:
-      "Temperatura spada o 12 stopni. Popyt na ogrzewanie rośnie w każdej dzielnicy z osobna, a sieć rozdziela moc według kosztu krańcowego.",
+      "Temperature falls by 12 degrees. Heating demand rises district by district while the grid allocates power by marginal cost.",
     proves:
-      "Że geografia nie jest tłem. Dzielnice mają własną niezawodność zasilania i własne nastroje, więc ten sam mróz uderza w nie różnie.",
-    watch: ["moc vs. zapotrzebowanie", "niezawodność zasilania per dzielnica", "warstwa unrest na mapie"],
+      "Geography is not scenery. Districts have their own power reliability and sentiment, so the same cold snap affects them differently.",
+    watch: ["supply versus demand", "power reliability by district", "the unrest layer on the map"],
     scenario: { name: "cold_snap", params: { drop_c: 12 } },
     href: "/map",
-    cta: "ZRZUĆ TEMPERATURĘ",
-    colour: "#5fb4ff"
+    cta: "DROP TEMPERATURE",
+    colour: "#5fb4ff",
+    image: "/ChatGPT Image 30 sie 2026, 05_59_04 (3).png"
   },
   {
     id: "supply",
@@ -93,14 +97,15 @@ export const MISSIONS: LabMission[] = [
     kind: "shock",
     duration: "3–4 min",
     summary:
-      "Z rynku znika połowa surowca. Ceny idą w górę nie dlatego, że ktoś je podniósł, tylko dlatego, że wychodzą z kosztów przez graf materiałowy.",
+      "Half the material supply disappears. Prices rise because they are derived from costs through the bill-of-materials graph — not because a script raised them.",
     proves:
-      "Że gospodarka liczy się od dołu: BOM, zapasy, marża, kredyt, bankructwo. Pieniądz jest całkowity i zachowany.",
-    watch: ["ceny w rozbiciu na dobra", "zapasy i marże firm", "import i eksport"],
+      "The economy resolves bottom-up: BOM, inventory, margin, credit and bankruptcy. Money is integral and conserved.",
+    watch: ["prices by good", "company inventory and margins", "imports and exports"],
     scenario: { name: "supply_shock", params: { code: "materials", loss: 0.5 } },
     href: "/economy",
-    cta: "ODETNIJ DOSTAWY",
-    colour: "#ffd24d"
+    cta: "CUT SUPPLY",
+    colour: "#ffd24d",
+    image: "/ChatGPT Image 30 sie 2026, 05_59_04 (4).png"
   },
   {
     id: "repair",
@@ -109,14 +114,15 @@ export const MISSIONS: LabMission[] = [
     kind: "shock",
     duration: "2–3 min",
     summary:
-      "Elektrownia wraca do pracy. Miasto nie wraca do punktu wyjścia — zwolnieni ludzie nie odzyskują pracy w tej samej chwili, a to, w co uwierzyli, zostaje w ich pamięci.",
+      "The plant comes back online. The city does not reset: laid-off people are not rehired instantly, and what agents came to believe remains in memory.",
     proves:
-      "Że skutki są trwałe, a nie odwracalne przełącznikiem. Pamięć i wiedza agentów przeżywają zdarzenie, które je wytworzyło.",
-    watch: ["bezrobocie po naprawie", "przekonania agentów w widoku osoby", "kronika zdarzeń i graf przyczynowy"],
+      "Consequences persist instead of reversing with a switch. Agent memory and knowledge outlive the event that produced them.",
+    watch: ["unemployment after repair", "agent beliefs in the person view", "event ledger and causal graph"],
     scenario: { name: "plant_repair", params: {} },
     href: "/causal",
-    cta: "NAPRAW ELEKTROWNIĘ",
-    colour: "#6ad19a"
+    cta: "REPAIR PLANT",
+    colour: "#6ad19a",
+    image: "/ChatGPT Image 30 sie 2026, 05_59_04 (5).png"
   },
   {
     id: "fork",
@@ -125,20 +131,21 @@ export const MISSIONS: LabMission[] = [
     kind: "experiment",
     duration: "4–6 min",
     summary:
-      "Rozgałęź oś czasu i puść dwa warianty tego samego świata obok siebie. Timeline Zero zostaje nietknięta — eksperyment żyje na forku z własną linią ziaren.",
+      "Fork the timeline and run two variants of the same world side by side. Timeline Zero remains untouched; the experiment lives on a branch with its own seed lineage.",
     proves:
-      "Że da się prowadzić kontrolowany eksperyment na cywilizacji: ta sama przeszłość, jedna zmieniona decyzja, dwa mierzalne wyniki.",
-    watch: ["drzewo osi czasu i fork_tick", "hash stanu w obu gałęziach", "rozjazd metryk po rozgałęzieniu"],
+      "A controlled experiment can be run on a civilization: identical history, one changed decision, two measurable outcomes.",
+    watch: ["timeline tree and fork_tick", "state hash on both branches", "metric divergence after the fork"],
     href: "/timeline",
-    cta: "OTWÓRZ OŚ CZASU",
-    colour: "#b489ff"
+    cta: "OPEN TIMELINE",
+    colour: "#b489ff",
+    image: "/ChatGPT Image 30 sie 2026, 05_59_04 (6).png"
   }
 ];
 
 /**
  * The claims this repository stakes, and the test that fails when one stops being true.
  *
- * Kept in the jury's language and deliberately falsifiable: each is a sentence somebody
+ * Deliberately falsifiable: each is a sentence somebody
  * could disprove by running the suite, not a slogan.
  */
 export interface Thesis {
@@ -151,69 +158,69 @@ export interface Thesis {
 export const THESES: Thesis[] = [
   {
     id: "determinism",
-    claim: "Ten sam seed daje ten sam świat.",
+    claim: "The same seed produces the same world.",
     mechanism:
-      "Seed + wersja jądra + hash konfiguracji identyfikują świat w całości. Stan jest kodowany kanonicznie i haszowany co tick.",
+      "Seed + kernel version + configuration hash identify the world completely. State is encoded canonically and hashed every tick.",
     test: "tests/test_determinism.py"
   },
   {
     id: "sleep",
-    claim: "Sen jest darmowy.",
+    claim: "Sleep is free.",
     mechanism:
-      "Śpiący agent dostaje zero wywołań mózgu i zero wywołań modelu; po przebudzeniu jedno zbiorcze rozliczenie i streszczenie zmian.",
+      "A sleeping agent receives zero brain calls and zero model calls; waking produces one aggregate settlement and world-change summary.",
     test: "tests/test_sleep.py"
   },
   {
     id: "chain",
-    claim: "Łańcuch skutków nie jest skryptem.",
+    claim: "The consequence chain is not scripted.",
     mechanism:
-      "Awaria generatora wywołuje wzrost cen, cięcia, zwolnienia, nagłówki i reakcję polityki przez osobne systemy, z których żaden nie zna następnego.",
+      "A generator failure causes price rises, cuts, layoffs, headlines and policy response through independent systems that do not know what comes next.",
     test: "tests/test_scenario.py"
   },
   {
     id: "money",
-    claim: "Pieniądz jest zachowany.",
+    claim: "Money is conserved.",
     mechanism:
-      "Doba przesuwa miliony między kontami i nie tworzy ani jednego grosza. Wszystko w liczbach całkowitych, nigdzie float.",
+      "A day moves millions between accounts without creating a single minor unit. Everything is integral; money never uses floats.",
     test: "tests/test_economy.py"
   },
   {
     id: "knowledge",
-    claim: "Wiedza jest subiektywna.",
+    claim: "Knowledge is subjective.",
     mechanism:
-      "Agent nie może opublikować faktu, którego nie zna, a jego widok świata nie trzyma uchwytu do stanu świata.",
+      "An agent cannot publish a fact it does not know, and its world view holds no reference to the world state.",
     test: "tests/test_agents.py"
   },
   {
     id: "history",
-    claim: "Przeszłość jest niezmienna.",
+    claim: "The past is immutable.",
     mechanism:
-      "Zapieczętowana oś czasu odrzuca zapis do własnej historii. Eksperymenty są możliwe wyłącznie na forkach.",
+      "A sealed timeline rejects writes into its own history. Experiments are possible only on forks.",
     test: "tests/test_persistence.py · tests/test_timelines.py"
   },
   {
     id: "replay",
-    claim: "Odtworzenie jest dokładne.",
+    claim: "Replay is exact.",
     mechanism:
-      "Najbliższy snapshot plus deterministyczna resymulacja odtwarzają świat, weryfikowane względem zapisanych hashy kontrolnych.",
+      "The nearest snapshot plus deterministic resimulation reconstructs the world and verifies it against stored checksums.",
     test: "tests/test_timelines.py"
   }
 ];
 
 /** The instrument panel: every analytic view, with the one question it answers. */
 export const INSTRUMENTS: Array<[href: string, label: string, question: string]> = [
-  ["/", "World", "Co się dzieje w tej chwili i ile to kosztuje?"],
-  ["/city", "City View", "Gdzie dokładnie jest każdy budynek i każdy człowiek?"],
-  ["/map", "Map 3D", "Jak rozkłada się bogactwo, niepokój i zasilanie?"],
-  ["/hydra", "Hydra", "Jak zbudowane jest samo miasto?"],
-  ["/people", "People", "Kto tu mieszka i w co wierzy?"],
-  ["/companies", "Companies", "Które firmy zarabiają, a które się przewracają?"],
-  ["/economy", "Economy", "Skąd biorą się ceny?"],
-  ["/government", "Governments", "Dlaczego zapadła ta decyzja?"],
-  ["/media", "Media", "Kto opowiedział to inaczej i dlaczego?"],
-  ["/technology", "Technology", "Co miasto właśnie wynajduje?"],
-  ["/culture", "Culture", "Czym żyje ulica?"],
-  ["/events", "Events", "Co się wydarzyło?"],
-  ["/causal", "Causal graph", "Dlaczego się wydarzyło?"],
-  ["/timeline", "Timeline", "Co by było, gdyby?"]
+  ["/", "World", "What is happening now, and what does it cost?"],
+  ["/city", "City View", "Where is every building and every person?"],
+  ["/map", "Map 3D", "How are wealth, unrest and power distributed?"],
+  ["/hydra", "Hydra", "How is the city itself constructed?"],
+  ["/people", "People", "Who lives here, and what do they believe?"],
+  ["/companies", "Companies", "Which firms thrive, and which fail?"],
+  ["/economy", "Economy", "Where do prices come from?"],
+  ["/government", "Governments", "Why was this decision made?"],
+  ["/media", "Media", "Who framed the event differently, and why?"],
+  ["/technology", "Technology", "What is the city inventing?"],
+  ["/culture", "Culture", "What is moving through the street?"],
+  ["/events", "Events", "What happened?"],
+  ["/causal", "Causal graph", "Why did it happen?"],
+  ["/timeline", "Timeline", "What if it had happened differently?"]
 ];

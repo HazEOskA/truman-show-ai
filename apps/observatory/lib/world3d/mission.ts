@@ -13,9 +13,8 @@
  * information, history. Walking the city end to end is therefore also walking Ring 0 to
  * Ring 4, which is the whole argument in the shape a person can remember.
  *
- * Narration is Polish because the jury is; instrument labels stay English because the rest
- * of the Observatory, the API and the ledger are. That split is deliberate and applied
- * everywhere in the mission UI.
+ * Narration and instrument labels are English-first, matching the Observatory, API and
+ * ledger throughout the competition interface.
  */
 
 /**
@@ -97,14 +96,14 @@ export const MISSION = {
   operator: "AGENT OSA",
   /** Read at the briefing screen, before anything moves. */
   prologue: [
-    "Hydra twierdzi, że jest cywilizacją, która działa sama: ma własny stan, własną pamięć i własną historię, a model językowy jest w niej opcjonalnym dodatkiem, nie silnikiem.",
-    "Nie jesteś tu, żeby to podziwiać. Jesteś audytem. Sześć stacji, sześć tez, które ten projekt stawia — na każdej podpinasz się do żywego świata i czytasz dowód prosto z symulacji, która właśnie się kręci.",
-    "Jeśli któraś teza nie ma pokrycia, zobaczysz to w liczbach na ekranie. Nic tu nie jest nagrane."
+    "Hydra claims to be a civilization that operates on its own: it has its own state, memory and history, while a language model is an optional layer rather than the engine.",
+    "You are not here to admire it. You are the audit. Six stations test six claims made by this project — at each one, connect to the live world and read evidence directly from the simulation as it runs.",
+    "If a claim is unsupported, the numbers on screen will expose it. Nothing here is pre-recorded."
   ],
-  epilogueTitle: "RAPORT KOŃCOWY",
+  epilogueTitle: "FINAL REPORT",
   epilogue: [
-    "Sześć tez, sześć dowodów odczytanych z działającego świata. Żaden z nich nie pochodzi ze scenariusza — wszystkie pochodzą z tego samego stanu, którym symulacja właśnie liczy kolejny tick.",
-    "To jest cała teza projektu: świat, który da się zatrzymać, rozłożyć, odtworzyć co do hasha i rozgałęzić — i który biegnie dalej, kiedy nikt nie patrzy."
+    "Six claims, six pieces of evidence read from a running world. None comes from a prepared script — every value comes from the same state the simulation is using to resolve its next tick.",
+    "That is the project's complete thesis: a world that can be paused, inspected, replayed down to the hash and forked — and that keeps running when nobody is watching."
   ]
 } as const;
 
@@ -113,15 +112,15 @@ export const STATIONS: Station[] = [
     id: "kernel",
     code: "K-0",
     ring: "RING 0 · KERNEL",
-    title: "PUNKT KOTWICZNY",
+    title: "ANCHOR POINT",
     brief:
-      "Lądujesz w Hydrze o poranku. Zanim spojrzysz na miasto, sprawdzasz jego metrykę: cztery liczby, które je jednoznacznie identyfikują. Jeśli świat jest tym, za co się podaje, te cztery liczby wystarczą, żeby odtworzyć go w całości na dowolnej innej maszynie.",
+      "You enter Hydra in the morning. Before looking at the city, inspect its identity: four values that uniquely describe it. If the world is what it claims to be, those values are enough to reproduce it completely on another machine.",
     thesis:
-      "STATE(t) + AGENT_DECISIONS(t) + WORLD_RULES + DETERMINISTIC_RANDOMNESS = STATE(t+1). Ten sam seed, ta sama konfiguracja i ta sama wersja jądra dają identyczny świat — co do hasha stanu.",
+      "STATE(t) + AGENT_DECISIONS(t) + WORLD_RULES + DETERMINISTIC_RANDOMNESS = STATE(t+1). The same seed, configuration and kernel version produce an identical world — down to the state hash.",
     proof:
-      "PRNG to SplitMix64, a każdy strumień losowy jest wyprowadzany etykietą przez BLAKE2b, więc nic nie zależy od kolejności wywołań. Systemy chodzą w ustalonej kolejności faz. Stan jest kodowany kanonicznie i haszowany co tick. Model językowy jest świadomie wyłączony z hasha konfiguracji — świat ma być odtwarzalny na maszynie bez żadnego providera.",
+      "The PRNG is SplitMix64 and every random stream is label-derived through BLAKE2b, so nothing depends on call order. Systems execute in a fixed phase order. State is encoded canonically and hashed every tick. The language model is deliberately excluded from the configuration hash so the world can be reproduced without any provider.",
     falsifier:
-      "Gdyby cokolwiek w pętli sięgało po czas systemowy, kolejność słownika albo globalny random, dwa przebiegi z tym samym ziarnem rozjechałyby się na haszu i test determinizmu byłby czerwony.",
+      "If anything in the loop reached for system time, dictionary ordering or global randomness, two runs with the same seed would diverge at the hash and the determinism test would fail.",
     evidence: [
       { key: "seed", label: "SEED" },
       { key: "kernel_version", label: "KERNEL" },
@@ -139,15 +138,15 @@ export const STATIONS: Station[] = [
     id: "genesis",
     code: "G-3",
     ring: "RING 3 · GENESIS",
-    title: "JEDNO ZIARNO, CAŁE MIASTO",
+    title: "ONE SEED, THE WHOLE CITY",
     brief:
-      "Idziesz ulicą, która ma nazwę, numery i klasę. Nikt jej nie narysował. Wypadła — razem z dzielnicą, kwartałem, działką i budynkiem, w którym ktoś właśnie się budzi — z tego samego ziarna, które przed chwilą przeczytałeś.",
+      "You walk a street with a name, numbers and a class. Nobody drew it. Together with the district, block, parcel and the building where somebody is waking, it emerged from the same seed you just inspected.",
     thesis:
-      "Geografia nie jest zasobem projektu. Jest wynikiem: planeta → kontynent → kraj → region → Hydra → dzielnice → kwartały → działki → budynki, wszystko wyprowadzone deterministycznie z jednego mastera.",
+      "Geography is not a project asset. It is an output: planet → continent → country → region → Hydra → districts → blocks → parcels → buildings, all deterministically derived from one master seed.",
     proof:
-      "Genesis buduje warstwy w tej kolejności i każdej daje własny strumień losowy. Zoning wylicza gabaryt budynku z jego funkcji i pojemności — mieszkania rosną w górę, fabryki w bok — więc sylwetka miasta jest konsekwencją, a nie dekoracją. To, co widzisz, to projekcja tego stanu, nie osobny model na potrzeby demo.",
+      "Genesis builds the layers in that order and assigns each its own random stream. Zoning derives building volume from use and capacity — apartments grow upward, factories outward — so the skyline is a consequence rather than decoration. What you see is a projection of state, not a separate model made for the demo.",
     falsifier:
-      "Gdyby miasto było przygotowane ręcznie, zmiana ziarna zostawiłaby ten sam układ ulic. Zmienia cały — łącznie z liczbą dzielnic i przebiegiem arterii.",
+      "If the city were authored by hand, changing the seed would leave the street plan intact. It changes the entire plan, including district count and arterial routes.",
     evidence: [
       { key: "districts", label: "DISTRICTS" },
       { key: "buildings", label: "BUILDINGS" },
@@ -164,15 +163,15 @@ export const STATIONS: Station[] = [
     id: "agents",
     code: "A-2",
     ring: "RING 2 · AGENTS · DORMANCY",
-    title: "SEN JEST DARMOWY",
+    title: "SLEEP IS FREE",
     brief:
-      "Nocna dzielnica. Prawie każda kropka jest zimna — ci ludzie śpią. Pytanie, które zadaje audyt, brzmi: ile kosztuje ta noc? W większości symulacji śpiący agent kosztuje tyle samo, co obudzony, bo i tak trzeba go przetworzyć.",
+      "A district at night. Almost every dot is cold: those people are asleep. The audit asks what that night costs. In most simulations, a sleeping agent costs as much as an awake one because it still has to be processed.",
     thesis:
-      "SLEEP to pominięcie, nie pętla. Śpiący agent dostaje zero wywołań mózgu i zero wywołań modelu, a po przebudzeniu jedno zbiorcze rozliczenie i streszczenie zmian świata.",
+      "SLEEP is a skip, not a loop. A sleeping agent receives zero brain calls and zero model calls, then one aggregate settlement and world-change summary upon waking.",
     proof:
-      "Przy SLEEP_START system dormancji wylicza tick pobudki i rejestruje agenta jako pominiętego — jądro w ogóle go nie tyka. Populacja jest hybrydowa: Tier A pamięta i decyduje, Tier B jest lekki, Tier C to kohorty liczone statystycznie, z awansem między poziomami. Dlatego 50 000 mieszkańców mieści się w jednym procesie.",
+      "At SLEEP_START the dormancy system computes a wake tick and registers the agent as skipped; the kernel does not touch it. Population is hybrid: Tier A remembers and decides, Tier B is lightweight, Tier C is statistically simulated cohorts with promotion between tiers. That is how 50,000 residents fit in one process.",
     falsifier:
-      "Gdyby sen był pętlą, liczba decyzji na tick nie spadałaby w nocy. Spada — i to jest ta sama liczba, którą widzisz obok.",
+      "If sleep were a loop, decisions per tick would not fall at night. They do — and the live number beside this claim shows it.",
     evidence: [
       { key: "individuals", label: "SIMULATED INDIVIDUALLY" },
       { key: "persistent_agents", label: "TIER A · PERSISTENT" },
@@ -191,15 +190,15 @@ export const STATIONS: Station[] = [
     id: "economy",
     code: "E-2",
     ring: "RING 2 · ECONOMY · COMPANIES",
-    title: "PIENIĄDZ SIĘ NIE MNOŻY",
+    title: "MONEY DOES NOT MULTIPLY",
     brief:
-      "Hala przemysłowa przy elektrowni. Firma, która tu stoi, ma koszt energii, marżę i konto — i jeśli prąd zdrożeje, nie dostanie o tym powiadomienia z fabuły. Zobaczy to na rachunku i sama zdecyduje, kogo zwolnić.",
+      "An industrial hall beside the power plant. The company here has an energy cost, a margin and an account. If power becomes more expensive it receives no narrative cue; it sees the bill and decides what to cut.",
     thesis:
-      "Gospodarka jest domknięta. Pieniądz to liczby całkowite w groszach, doba przesuwa miliony między kontami i nie tworzy ani jednego grosza z niczego.",
+      "The economy is closed. Money is stored as integer minor units; a day moves millions between accounts without creating a single unit from nothing.",
     proof:
-      "Nigdzie w kodzie nie ma pieniądza zmiennoprzecinkowego. Ceny wychodzą z kosztów przez graf BOM, firmy mają zapasy, kredyt i bankructwo, a rynek pracy i rynek dóbr rozliczają się w osobnych fazach ticku. Łańcuch prąd → koszt → cena → cięcie produkcji → zwolnienia → nagłówki → polityka nie jest nigdzie zapisany jako scenariusz: każde ogniwo to osobny system, który reaguje na stan.",
+      "There is no floating-point money in the code. Prices derive from costs through the BOM graph; companies have inventory, credit and bankruptcy, while labor and goods markets settle in separate tick phases. The power → cost → price → production cuts → layoffs → headlines → policy chain is not scripted: every link is an independent system responding to state.",
     falsifier:
-      "Test ekonomii sumuje wszystkie konta przed dobą i po niej. Każda różnica to błąd, nie zaokrąglenie.",
+      "The economy test sums every account before and after a day. Any difference is an error, not rounding.",
     evidence: [
       { key: "companies", label: "COMPANIES" },
       { key: "unemployment", label: "UNEMPLOYMENT" },
@@ -217,15 +216,15 @@ export const STATIONS: Station[] = [
     id: "information",
     code: "I-2",
     ring: "RING 2 · INFORMATION · MEDIA",
-    title: "WIEDZA JEST SUBIEKTYWNA",
+    title: "KNOWLEDGE IS SUBJECTIVE",
     brief:
-      "Redakcja. Ta sama awaria, cztery różne pierwsze strony — bo każda redakcja ma właściciela, nastawienie i model biznesowy, a jej dziennikarze wiedzą tylko tyle, ile do nich dotarło.",
+      "A newsroom. The same failure becomes four different front pages because every outlet has an owner, orientation and business model, while its journalists know only what reached them.",
     thesis:
-      "Agent nigdy nie dostaje stanu świata. Dostaje widok zbudowany z własnej wiedzy — i nie może opublikować faktu, którego nie zna.",
+      "An agent never receives world state. It receives a view built from personal knowledge and cannot publish a fact it does not know.",
     proof:
-      "System percepcji buduje AgentView z osobistej wiedzy agenta: fakt, źródło, pewność i szansa na zniekształcenie. Obiekt widoku nie trzyma żadnego uchwytu do świata, więc nie da się go obejść. Informacja rozchodzi się przez media, rozmowę i HydraNet w czasie — plotka wyprzedza sprostowanie.",
+      "The perception system builds AgentView from the agent's own knowledge: fact, source, certainty and distortion probability. The view object holds no reference to the world, so it cannot bypass that boundary. Information moves through media, conversation and HydraNet over time; rumor can outrun correction.",
     falsifier:
-      "Panel obok rozdziela obecność na observed i derived. To, czego widok nie wie na pewno, jest oznaczone jako wywnioskowane i rysowane inaczej — również w tej scenie.",
+      "The live panel separates observed from derived presence. What the view does not know directly is marked as inferred and rendered differently in this scene as well.",
     evidence: [
       { key: "observed", label: "OBSERVED" },
       { key: "derived", label: "DERIVED" },
@@ -243,15 +242,15 @@ export const STATIONS: Station[] = [
     id: "history",
     code: "H-4",
     ring: "RING 0 · HISTORY · TIMELINES",
-    title: "PRZESZŁOŚĆ JEST NIEZMIENNA",
+    title: "THE PAST IS IMMUTABLE",
     brief:
-      "Archiwum. Ostatnia stacja i jedyna, która nie mówi o teraźniejszości. Każde zdarzenie w tym mieście zna swoją przyczynę, bo jądro zapisało powiązanie w chwili, w której ono zaszło — nie odtworzyło go później.",
+      "The archive. The last station is the only one not about the present. Every event in this city knows its cause because the kernel recorded the link when it happened rather than reconstructing it later.",
     thesis:
-      "Kronika jest tylko dopisywalna, Timeline Zero jest zapieczętowana, a eksperymenty żyją na forkach z własną linią ziaren. Odtworzenie przeszłego stanu jest dokładne, nie przybliżone.",
+      "The chronicle is append-only, Timeline Zero is sealed, and experiments live on forks with their own seed lineage. Replaying a past state is exact, not approximate.",
     proof:
-      "Magazyn odrzuca zapis o ticku wcześniejszym niż zapieczętowana głowa. Fork kopiuje snapshot rodzica i wyprowadza swój strumień losowy z derive(parent_seed, 'fork', timeline_id, fork_tick). Replay to najbliższy snapshot plus deterministyczna resymulacja, weryfikowana względem zapisanego hasha kontrolnego — rozjazd jest twardym błędem, nigdy cichym.",
+      "Storage rejects any write earlier than the sealed head. A fork copies its parent's snapshot and derives a random stream with derive(parent_seed, 'fork', timeline_id, fork_tick). Replay uses the nearest snapshot plus deterministic resimulation and verifies it against the stored checksum; divergence is a hard error, never a silent one.",
     falsifier:
-      "Gdyby historię dało się nadpisać, nie potrzebowałbyś forka, żeby sprawdzić inną politykę. Potrzebujesz — i to jest jedyna droga.",
+      "If history could be overwritten, testing another policy would not require a fork. It does — and that is the only path.",
     evidence: [
       { key: "timeline_id", label: "TIMELINE" },
       { key: "phase", label: "PHASE" },

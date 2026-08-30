@@ -159,7 +159,7 @@ export default function MapPage() {
             </Canvas>
           )}
 
-          <div className="map3d-hint">DRAG obróć · SHIFT+DRAG przesuń · SCROLL przybliż</div>
+          <div className="map3d-hint">DRAG rotate · SHIFT+DRAG pan · SCROLL zoom</div>
 
           <div className="map3d-legend">
             <div className="legend-title">{meta ? meta.label.toUpperCase() : "LAND USE"}</div>
@@ -171,7 +171,7 @@ export default function MapPage() {
                   <span>{meta.unit}</span>
                   <span>{fmt(meta.high, 2)}</span>
                 </div>
-                <div className="legend-source">źródło · {meta.source}</div>
+                <div className="legend-source">source · {meta.source}</div>
               </>
             ) : (
               <div className="legend-zones">
@@ -207,7 +207,7 @@ export default function MapPage() {
                     );
                   })}
               </div>
-              <button onClick={() => setSelected(null)}>ZAMKNIJ</button>
+              <button onClick={() => setSelected(null)}>CLOSE</button>
             </aside>
           )}
         </div>

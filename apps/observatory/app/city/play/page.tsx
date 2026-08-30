@@ -98,7 +98,7 @@ export default function CityPlayPage() {
     } else {
       setScreen("field");
       const upcoming = layout?.targets[next];
-      if (upcoming) flash(`ZALOGOWANO // następna stacja ${upcoming.station.code} — ${upcoming.station.title}`);
+      if (upcoming) flash(`EVIDENCE LOGGED // next station ${upcoming.station.code} — ${upcoming.station.title}`);
     }
   }, [logged, layout, flash]);
 
@@ -153,7 +153,7 @@ export default function CityPlayPage() {
 
       <div className="play-stage">
         {error && <div className="play-blocker">CITY PROJECTION ERROR // {error}</div>}
-        {!model && !error && <div className="play-blocker"><span className="play-spinner" />PROJEKCJA HYDRY…</div>}
+        {!model && !error && <div className="play-blocker"><span className="play-spinner" />PROJECTING HYDRA…</div>}
 
         {model && layout && (
           <HydraPlayScene
@@ -187,7 +187,7 @@ export default function CityPlayPage() {
               </ol>
               {current && (
                 <div className="hud-heading">
-                  <span>CEL</span>
+                  <span>TARGET</span>
                   <b>{current.address || current.buildingId}</b>
                   <span>{telemetry.distance > 0 ? `${telemetry.distance.toFixed(0)} m` : "—"}</span>
                 </div>
@@ -206,12 +206,12 @@ export default function CityPlayPage() {
               <div className="hud-row"><span>OSA X / Z</span><b>{telemetry.x.toFixed(0)} / {telemetry.z.toFixed(0)}</b></div>
               <div className="hud-row"><span>SPEED</span><b>{telemetry.speed.toFixed(1)} m/s</b></div>
               <div className="hud-controls">
-                {autopilot ? "AUTOPILOT PROWADZI · WASD PRZEJMUJE STER" : "WASD / STRZAŁKI · SHIFT SPRINT · E INTERAKCJA"}
+                {autopilot ? "AUTOPILOT GUIDING · WASD TAKES CONTROL" : "WASD / ARROWS · SHIFT SPRINT · E INTERACT"}
               </div>
             </section>
 
             {model && layout && <MiniMap model={model} layout={layout} logged={logged} telemetry={telemetry} />}
-            <div className={telemetry.nearTarget && screen === "field" ? "play-interact visible" : "play-interact"}>E // PODEPNIJ SIĘ</div>
+            <div className={telemetry.nearTarget && screen === "field" ? "play-interact visible" : "play-interact"}>E // CONNECT</div>
             {toast && <div className="play-toast">{toast}</div>}
             <MobileControls />
           </>
@@ -226,7 +226,7 @@ export default function CityPlayPage() {
             onSelect={select}
             onStart={() => {
               setScreen("field");
-              flash(`START // stacja ${STATIONS[0].code} — ${STATIONS[0].title}`);
+              flash(`START // station ${STATIONS[0].code} — ${STATIONS[0].title}`);
             }}
           />
         )}
@@ -279,8 +279,8 @@ function Briefing({
         <h1>{MISSION.name}</h1>
         <div className="sheet-meta">
           <span>OPERATOR <b>{MISSION.operator}</b></span>
-          <span>STACJE <b>{layout?.targets.length ?? STATIONS.length}</b></span>
-          <span>TRASA <b>{layout ? `${Math.round(layout.routeMetres)} m` : "—"}</b></span>
+          <span>STATIONS <b>{layout?.targets.length ?? STATIONS.length}</b></span>
+          <span>ROUTE <b>{layout ? `${Math.round(layout.routeMetres)} m` : "—"}</b></span>
           <span>TIMELINE <b>{timelineId}</b></span>
         </div>
 
@@ -300,19 +300,19 @@ function Briefing({
 
         {!worldId && (
           <div className="sheet-picker">
-            <p className="sheet-warn">Brak wybranego świata. Wybierz istniejący albo odpal Genesis — misja czyta z żywej symulacji, nie z nagrania.</p>
+            <p className="sheet-warn">No world is selected. Choose an existing world or run Genesis — this mission reads a live simulation, never a recording.</p>
             <WorldPicker worldId={worldId} timelineId={timelineId} onSelect={onSelect} />
           </div>
         )}
 
         <div className="sheet-actions">
           <button className="sheet-go" disabled={!ready} onClick={onStart}>
-            {ready ? "ROZPOCZNIJ MISJĘ" : "CZEKAM NA PROJEKCJĘ…"}
+            {ready ? "BEGIN MISSION" : "WAITING FOR PROJECTION…"}
           </button>
-          <Link className="sheet-link" href="/lab">Wróć do laboratorium</Link>
+          <Link className="sheet-link" href="/lab">Return to Laboratory</Link>
         </div>
         <p className="sheet-foot">
-          AUTOPILOT jest włączony — agent sam pokona trasę. W każdej chwili możesz przejąć ster (WASD).
+          Autopilot is enabled and will follow the route. Use WASD at any time to take control.
         </p>
       </div>
     </div>
@@ -338,7 +338,7 @@ function Dossier({
     <div className="play-overlay dossier-overlay">
       <div className="play-sheet dossier" style={{ "--station": station.colour } as React.CSSProperties}>
         <div className="sheet-kicker">
-          STACJA {index + 1}/{total} · {station.ring}
+          STATION {index + 1}/{total} · {station.ring}
         </div>
         <h1>
           <span className="dossier-code">{station.code}</span> {station.title}
@@ -347,20 +347,20 @@ function Dossier({
         <p className="dossier-brief">{station.brief}</p>
 
         <div className="dossier-block">
-          <h4>TEZA</h4>
+          <h4>CLAIM</h4>
           <p>{station.thesis}</p>
         </div>
         <div className="dossier-block">
-          <h4>JAK JEST WYMUSZONA</h4>
+          <h4>HOW IT IS ENFORCED</h4>
           <p>{station.proof}</p>
         </div>
         <div className="dossier-block">
-          <h4>CO BY JĄ OBALIŁO</h4>
+          <h4>WHAT WOULD FALSIFY IT</h4>
           <p>{station.falsifier}</p>
         </div>
 
         <div className="dossier-block">
-          <h4>DOWÓD Z ŻYWEGO ŚWIATA</h4>
+          <h4>EVIDENCE FROM THE LIVE WORLD</h4>
           <div className="dossier-evidence">
             {station.evidence.map((item) => (
               <div key={item.key} className="evidence">
@@ -377,7 +377,7 @@ function Dossier({
         </div>
 
         <button className="sheet-go" onClick={onConfirm}>
-          {index + 1 >= total ? "ZAMKNIJ AUDYT" : "ZALOGUJ I RUSZAJ DALEJ"}
+          {index + 1 >= total ? "CLOSE AUDIT" : "LOG EVIDENCE & CONTINUE"}
         </button>
       </div>
     </div>
@@ -391,7 +391,7 @@ function Debrief({ context, onReplay }: { context: EvidenceContext; onReplay: ()
     <div className="play-overlay">
       <div className="play-sheet debrief">
         <div className="sheet-kicker">{MISSION.code} · {MISSION.epilogueTitle}</div>
-        <h1>AUDYT ZAMKNIĘTY</h1>
+        <h1>AUDIT COMPLETE</h1>
         {MISSION.epilogue.map((paragraph) => (
           <p key={paragraph.slice(0, 24)}>{paragraph}</p>
         ))}
@@ -420,17 +420,17 @@ function Debrief({ context, onReplay }: { context: EvidenceContext; onReplay: ()
         <div className="debrief-equation">
           <code>STATE(t) + AGENT_DECISIONS(t) + WORLD_RULES + DETERMINISTIC_RANDOMNESS = STATE(t+1)</code>
           <span>
-            Model językowy nigdy nie jest częścią tego równania. Jest opcjonalną nakładką, która
-            może zaproponować działanie albo napisać zdanie — cała symulacja przechodzi do końca
-            bez skonfigurowanego providera, i testy determinizmu tego wymagają.
+            A language model is never part of this equation. It is an optional layer that may
+            propose an action or write a sentence; the full simulation completes without a
+            configured provider, and the determinism tests require that property.
           </span>
         </div>
 
         <div className="sheet-actions">
-          <button className="sheet-go" onClick={onReplay}>POWTÓRZ MISJĘ</button>
-          <Link className="sheet-link" href="/lab">Laboratorium</Link>
+          <button className="sheet-go" onClick={onReplay}>REPLAY MISSION</button>
+          <Link className="sheet-link" href="/lab">Laboratory</Link>
           <Link className="sheet-link" href="/city">City View</Link>
-          <Link className="sheet-link" href="/causal">Graf przyczynowy</Link>
+          <Link className="sheet-link" href="/causal">Causal graph</Link>
         </div>
       </div>
     </div>

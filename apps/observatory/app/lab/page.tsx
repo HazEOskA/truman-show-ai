@@ -23,13 +23,14 @@
  * tick boundary.
  */
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
 import WorldPicker from "@/components/WorldPicker";
 import { apiPost, fmt, Json, pct, usePolling, useSelection } from "@/lib/api";
-import { useClock } from "@/lib/city/useCity";
+import { useCityEvents, useClock } from "@/lib/city/useCity";
 import { INSTRUMENTS, MISSIONS, THESES, type LabMission } from "@/lib/lab/programme";
 
 import "./lab.css";
@@ -43,6 +44,7 @@ export default function LabPage() {
   const { data: state, error } = usePolling<Json>(base ? `${base}/state` : null, 6000);
   const tick = Number(state?.tick ?? 0);
   const clock = useClock(worldId, timelineId, tick);
+  const events = useCityEvents(timelineId, tick);
 
   const [launching, setLaunching] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -67,7 +69,7 @@ export default function LabPage() {
         return;
       }
       if (!base) {
-        setNote("Najpierw wybierz świat albo odpal Genesis — misja działa na żywej symulacji.");
+        setNote("Select a world or run Genesis first — every mission operates on the live simulation.");
         return;
       }
       setLaunching(mission.id);
@@ -76,7 +78,7 @@ export default function LabPage() {
         if (!running) await apiPost(`${base}/control`, { mode: "running" });
         router.push(mission.href);
       } catch (err) {
-        setNote(`Nie udało się zakolejkować scenariusza: ${(err as Error).message}`);
+        setNote(`The scenario could not be queued: ${(err as Error).message}`);
       } finally {
         setLaunching(null);
       }
@@ -101,11 +103,11 @@ export default function LabPage() {
       <header className="lab-head">
         <div>
           <div className="lab-kicker">HYDRA WORLD · OBSERVATION &amp; RESEARCH LABORATORY</div>
-          <h1>LABORATORIUM</h1>
+          <h1>Laboratory</h1>
           <p className="lab-lede">
-            Stanowisko obserwacyjno-badawcze do sztucznej cywilizacji. Wybierz świat, wywołaj
-            zaburzenie i patrz, co miasto z nim zrobi. Nic tu nie jest nagrane — każda misja
-            działa na tej samej symulacji, która właśnie liczy kolejny tick.
+            A mission control surface for an artificial civilization. Select a world, introduce
+            a disturbance and observe how the city responds. Nothing is pre-recorded: every
+            mission runs against the simulation currently resolving its next tick.
           </p>
         </div>
         <div className="lab-rig">
@@ -120,14 +122,14 @@ export default function LabPage() {
 
       {error && !state ? (
         <div className="error lab-error">
-          API nie odpowiada ({error}). Uruchom backend — <code>python scripts/dev.py</code>.
+          The API is not responding ({error}). Start the runtime with <code>python scripts/dev.py</code>.
         </div>
       ) : null}
 
       {/* -- bench ------------------------------------------------------------------ */}
 
       <section className="lab-section">
-        <h2>01 · STANOWISKO</h2>
+        <h2>01 · Mission control</h2>
         <div className="lab-bench">
           <WorldPicker worldId={worldId} timelineId={timelineId} onSelect={select} />
 
@@ -168,13 +170,39 @@ export default function LabPage() {
           <div className="card">
             <h3>World identity</h3>
             <p className="lab-hint">
-              Te sześć wartości identyfikuje ten świat w całości. Z nimi odtworzysz go co do
-              hasha na dowolnej innej maszynie — także takiej bez żadnego modelu językowego.
+              These six values identify the world completely. Together they reproduce it down
+              to the hash on another machine — including one with no language model configured.
             </p>
             <div className="lab-identity">
               {identity.map(([label, value]) => (
                 <div key={label}><span>{label}</span><b>{value}</b></div>
               ))}
+            </div>
+          </div>
+
+          <div className="card lab-live">
+            <div className="lab-card-head">
+              <div>
+                <h3>Live event feed</h3>
+                <p className="lab-hint">Immutable ledger events from the selected timeline.</p>
+              </div>
+              <Link href="/events" className="lab-card-link">Open ledger →</Link>
+            </div>
+            <div className="lab-events" aria-live="polite">
+              {events.length ? events.slice(0, 6).map((event) => (
+                <Link key={event.event_id} href="/events" className="lab-event">
+                  <span className="lab-event-time">{event.sim_time || `tick ${event.tick}`}</span>
+                  <span className="lab-event-copy">
+                    <b>{event.headline || `${event.topic.replaceAll("_", " ")} · ${event.action}`}</b>
+                    <small>{[event.outlet, event.district_id, event.actor].filter(Boolean).join(" · ") || event.topic}</small>
+                  </span>
+                  <span className="lab-event-score" title={`Importance ${event.importance.toFixed(2)}`}>
+                    <i style={{ width: `${Math.max(8, Math.round(event.importance * 100))}%` }} />
+                  </span>
+                </Link>
+              )) : (
+                <div className="lab-event-empty">Waiting for ledger events from the selected timeline…</div>
+              )}
             </div>
           </div>
         </div>
@@ -183,17 +211,17 @@ export default function LabPage() {
       {/* -- missions --------------------------------------------------------------- */}
 
       <section className="lab-section">
-        <h2>02 · MISJE</h2>
+        <h2>02 · Missions</h2>
         <p className="lab-sub">
-          Sześć przebiegów dla jury. Pierwszy tłumaczy architekturę, cztery kolejne wywołują
-          zaburzenie i pokazują, jak miasto samo je rozpracowuje, ostatni prowadzi
-          eksperyment kontrolowany na rozgałęzionej osi czasu.
+          Six live runs for the jury. The first explains the architecture, four introduce a
+          disturbance and reveal the city resolving it, and the last opens a controlled
+          experiment on a forked timeline.
         </p>
         {note ? <div className="error lab-error">{note}</div> : null}
         {ready && !running ? (
           <div className="lab-warning">
-            Zegar stoi. Misje z zaburzeniem uruchomią go same; misję 01 możesz obejrzeć także
-            na zatrzymanym świecie, ale kropki nie będą się ruszać.
+            The clock is paused. Shock missions will start it automatically; Mission 01 can be
+            inspected while paused, but city agents will not move.
           </div>
         ) : null}
 
@@ -204,26 +232,32 @@ export default function LabPage() {
               className={`mission kind-${mission.kind}`}
               style={{ "--mission": mission.colour } as React.CSSProperties}
             >
-              <header>
-                <span className="mission-code">{mission.code}</span>
-                <span className="mission-kind">
-                  {mission.kind === "walkthrough" ? "PRZEJŚCIE" : mission.kind === "shock" ? "ZABURZENIE" : "EKSPERYMENT"}
-                </span>
-              </header>
-              <h3>{mission.name}</h3>
-              <p className="mission-summary">{mission.summary}</p>
-
-              <div className="mission-block">
-                <h4>CO DOWODZI</h4>
-                <p>{mission.proves}</p>
+              <div className="mission-visual">
+                <Image src={mission.image} alt={`${mission.name} mission environment`} fill sizes="(max-width: 700px) 100vw, (max-width: 1200px) 50vw, 33vw" />
+                <div className="mission-visual-shade" />
+                <header>
+                  <span className="mission-code">{mission.code}</span>
+                  <span className="mission-kind">
+                    {mission.kind === "walkthrough" ? "WALKTHROUGH" : mission.kind === "shock" ? "DISTURBANCE" : "EXPERIMENT"}
+                  </span>
+                </header>
+                <h3>{mission.name}</h3>
               </div>
-              <div className="mission-block">
-                <h4>NA CO PATRZEĆ</h4>
-                <ul>
-                  {mission.watch.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
+
+              <div className="mission-content">
+                <p className="mission-summary">{mission.summary}</p>
+                <div className="mission-block">
+                  <h4>WHAT IT PROVES</h4>
+                  <p>{mission.proves}</p>
+                </div>
+                <div className="mission-block">
+                  <h4>WHAT TO WATCH</h4>
+                  <ul>
+                    {mission.watch.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
 
               <footer>
@@ -232,7 +266,7 @@ export default function LabPage() {
                   disabled={launching === mission.id || (Boolean(mission.scenario) && !ready)}
                   onClick={() => launch(mission)}
                 >
-                  {launching === mission.id ? "KOLEJKUJĘ…" : mission.cta}
+                  {launching === mission.id ? "QUEUING…" : mission.cta}
                 </button>
                 <span className="mission-time">{mission.duration}</span>
                 {mission.scenario ? (
@@ -247,10 +281,10 @@ export default function LabPage() {
       {/* -- theses ----------------------------------------------------------------- */}
 
       <section className="lab-section">
-        <h2>03 · TEZY POD TESTEM</h2>
+        <h2>03 · Claims under test</h2>
         <p className="lab-sub">
-          Siedem twierdzeń, których to repozytorium naprawdę pilnuje. Każde ma test, który
-          robi się czerwony, kiedy twierdzenie przestaje być prawdziwe —
+          Seven claims this repository actively enforces. Each names the test that fails when
+          the claim stops being true —
           <code> python -m pytest tests -q</code>.
         </p>
         <ol className="lab-theses">
@@ -270,8 +304,8 @@ export default function LabPage() {
       {/* -- instruments ------------------------------------------------------------ */}
 
       <section className="lab-section">
-        <h2>04 · INSTRUMENTY</h2>
-        <p className="lab-sub">Każdy widok Obserwatorium odpowiada na dokładnie jedno pytanie.</p>
+        <h2>04 · Instruments</h2>
+        <p className="lab-sub">Every Observatory view answers one specific question.</p>
         <div className="lab-instruments">
           {INSTRUMENTS.map(([href, label, question]) => (
             <Link key={href} href={href} className="instrument">
@@ -285,8 +319,8 @@ export default function LabPage() {
       <footer className="lab-foot">
         <span>STATE(t) + AGENT_DECISIONS(t) + WORLD_RULES + DETERMINISTIC_RANDOMNESS = STATE(t+1)</span>
         <span className="lab-foot-note">
-          Model językowy nigdy nie jest częścią tego równania. Cała symulacja przechodzi do
-          końca bez skonfigurowanego providera — i testy determinizmu tego wymagają.
+          A language model is never part of this equation. The entire simulation completes
+          without a configured provider — and the determinism tests require it.
         </span>
       </footer>
     </div>

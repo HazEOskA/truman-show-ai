@@ -57,10 +57,11 @@ export default function WorldPicker({
   }
 
   return (
-    <div className="card">
-      <h3>World</h3>
-      <div className="row">
-        <select value={worldId} onChange={(event) => onSelect(event.target.value, "tl_zero")}>
+    <div className="card world-picker">
+      <h3>World selection</h3>
+      <div className="row world-picker-row">
+        <label className="sr-only" htmlFor="world-select">World</label>
+        <select id="world-select" value={worldId} onChange={(event) => onSelect(event.target.value, "tl_zero")}>
           <option value="">— select —</option>
           {worlds.map((world) => (
             <option key={world.world_id} value={world.world_id}>
@@ -68,7 +69,8 @@ export default function WorldPicker({
             </option>
           ))}
         </select>
-        <select value={timelineId} onChange={(event) => onSelect(worldId, event.target.value)}>
+        <label className="sr-only" htmlFor="timeline-select">Timeline</label>
+        <select id="timeline-select" value={timelineId} onChange={(event) => onSelect(worldId, event.target.value)}>
           {(timelines.length ? timelines : [{ timeline_id: "tl_zero", label: "Timeline Zero" }]).map((t) => (
             <option key={t.timeline_id} value={t.timeline_id}>
               {t.timeline_id} {t.label ? `— ${t.label}` : ""}
@@ -76,14 +78,14 @@ export default function WorldPicker({
           ))}
         </select>
       </div>
-      <div className="row" style={{ marginTop: 10 }}>
-        <span className="muted">new world seed</span>
-        <input value={seed} onChange={(event) => setSeed(event.target.value)} style={{ width: 120 }} />
+      <div className="row world-genesis">
+        <label className="muted" htmlFor="world-seed">New world seed</label>
+        <input id="world-seed" value={seed} onChange={(event) => setSeed(event.target.value)} />
         <button className="primary" disabled={busy} onClick={createWorld}>
           {busy ? "creating…" : "Genesis"}
         </button>
       </div>
-      {error ? <div className="error" style={{ marginTop: 8 }}>{error}</div> : null}
+      {error ? <div className="error world-picker-error">{error}</div> : null}
     </div>
   );
 }
