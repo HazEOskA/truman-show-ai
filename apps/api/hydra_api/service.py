@@ -72,6 +72,9 @@ class WorldService:
         residents: int | None = None,
         persistent_agents: int | None = None,
         companies: int | None = None,
+        llm_enabled: bool = False,
+        llm_provider: str = "gemini",
+        llm_model: str = "gemini-3.5-flash",
     ) -> dict[str, Any]:
         config = WorldConfig(world_name=name)
         if residents:
@@ -81,6 +84,11 @@ class WorldService:
             config.population.persistent_agents = persistent_agents
         if companies:
             config.economy.company_count = companies
+        if llm_enabled:
+            config.llm.enabled = True
+            config.llm.provider = llm_provider
+            config.llm.small_model = llm_model
+            config.llm.large_model = llm_model
 
         world_id = world_id or f"world_{seed}"
         if self.store.get_world(world_id) is not None:
@@ -100,6 +108,11 @@ class WorldService:
             "config_hash": config.config_hash(),
             "state_hash": runtime.state.state_hash(),
             "population": config.population.total_residents,
+            "llm": {
+                "enabled": config.llm.enabled,
+                "provider": config.llm.provider,
+                "model": config.llm.small_model,
+            },
         }
 
     def config_for(self, world_id: str) -> WorldConfig:
