@@ -38,7 +38,15 @@ def test_view_contains_only_what_the_agent_knows(world):
     assert len(knowledge.facts) >= len(view.known_facts), "the world knows at least as much as one person"
     assert not hasattr(view, "state"), "the view must not carry a handle on the world"
     payload = view.to_prompt_payload()
-    assert set(payload) == {"you", "goals", "knows", "since_last_time", "remembers", "situation"}
+    assert set(payload) == {
+        "you", "goals", "knows", "openings", "since_last_time", "remembers", "situation",
+    }
+
+    # The payload names the facts and vacancies it shows, because several actions take an
+    # identifier rather than a verb alone. Naming them widens nothing: every id here has to be
+    # one this agent already knows, which is the same rule the post handler enforces.
+    assert {fact["fact_id"] for fact in payload["knows"]} <= known_ids
+    assert all("opening_id" in opening for opening in payload["openings"])
 
 
 def test_posting_a_fact_the_agent_does_not_know_is_rejected(world):

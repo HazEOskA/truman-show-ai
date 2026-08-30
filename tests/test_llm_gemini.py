@@ -40,12 +40,10 @@ MODEL = "gemini-3.5-flash"
 # else's news, so the kernel executes it without writing history. To show a model's decision
 # arriving in the ledger the test has to have it choose something the city would notice.
 #
-# `protest` leads for a reason worth writing down: it is the only one of these a model can
-# currently take unaided. The other three need an identifier in `params` -- a fact id, an
-# opening id -- and `AgentView.to_prompt_payload` sends topics and values but no ids, so a
-# model proposing `post_online` is rejected with `unknown_fact` every time. The rule doing the
-# rejecting is correct (an agent may not post what it does not know); what is missing is that
-# the view never tells the model which facts it may cite.
+# `protest` leads because it needs no identifier: an adult in a real district can simply do it.
+# The other three take one -- a fact id, an opening id -- which the view now names, so a model
+# can reach them too; `test_d` is the case that proves it. This ordering keeps the earlier
+# tests focused on the decision path rather than on identifier plumbing.
 EMITTING_ACTIONS = ("protest", "post_online", "apply_for_job", "found_company")
 
 
@@ -241,3 +239,120 @@ def test_c_a_model_answer_the_world_forbids_is_dropped(world):
     assert gateway.propose(person, view, allowed, MODEL) is None
     assert stub.calls == 1, "the call still happened and was still paid for"
     assert gateway.stats.failures == 1
+
+
+class IdAwareTransport(GeminiTransportStub):
+    """A model that does what the identifiers are for: cites one.
+
+    Not cleverness on the stub's part — this is the whole behaviour under test. `post_online`
+    and `apply_for_job` are not verbs a model can utter on their own; their handlers read
+    `params["fact_id"]` and `params["opening_id"]`, and until the view named them, a model was
+    structurally unable to pass validation on either. Reading the id straight back out of the
+    prompt is exactly what a real model does with a field spelled the same as the parameter.
+    """
+
+    ID_ACTIONS = ("apply_for_job", "post_online")
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.chose: tuple[str, dict[str, str]] | None = None
+
+    def complete(self, *, system: str, prompt: str, model: str, max_tokens: int) -> LLMResponse:
+        self.calls += 1
+        payload = json.loads(prompt)
+        allowed = payload["allowed_actions"]
+
+        if "apply_for_job" in allowed and payload.get("openings"):
+            chosen = ("apply_for_job", {"opening_id": payload["openings"][0]["opening_id"]})
+        elif "post_online" in allowed and payload.get("knows"):
+            chosen = ("post_online", {"fact_id": payload["knows"][0]["fact_id"]})
+        else:
+            raise AssertionError("the view offered no identifier for any action that needs one")
+
+        self.chose = chosen
+        action, params = chosen
+        answer = json.dumps({"action": action, "params": params, "rationale": "citing what I know"})
+        return LLMResponse(text=answer, model=model, input_tokens=160, output_tokens=28)
+
+
+def test_d_a_model_can_act_on_an_identifier_the_view_gave_it(world):
+    """AgentView -> intent carrying a real object id -> validation -> submit -> event."""
+
+    stub = IdAwareTransport()
+    gateway = gemini_gateway(stub)
+    ctx = world.kernel.ctx
+    _wake_the_city(world)
+
+    decided = None
+    for person in _awake_persistent_people(world):
+        view = build_view(ctx, person)
+        payload = view.to_prompt_payload()
+
+        # The fix itself: the payload names what it shows.
+        assert "knows" in payload and "openings" in payload
+        assert all("fact_id" in fact for fact in payload["knows"])
+        assert all("opening_id" in opening for opening in payload["openings"])
+        if not (payload["knows"] or payload["openings"]):
+            continue
+
+        view.salience = situation_importance(view)
+        allowed = [option.action for option in UtilityBrain().options(view)]
+        if not any(action in IdAwareTransport.ID_ACTIONS for action in allowed):
+            continue
+
+        intent = gateway.propose(person, view, allowed, MODEL)
+        assert intent is not None, "the gateway must turn the model's JSON into an intent"
+        assert intent.source == f"llm:{MODEL}"
+        assert intent.action in IdAwareTransport.ID_ACTIONS
+        assert intent.params, "an action that needs an identifier must carry one"
+
+        result = ctx.submit(intent)
+        if result.accepted and result.event_id:
+            decided = (person, intent, result, payload)
+            break
+
+    assert decided is not None, "no id-bearing action from the model survived validation"
+    person, intent, result, payload = decided
+
+    # The id the model used is one this agent was actually shown — not one it invented, and
+    # not one belonging to somebody else. Subjective knowledge survives the round trip.
+    if intent.action == "post_online":
+        assert intent.params["fact_id"] in {fact["fact_id"] for fact in payload["knows"]}
+    else:
+        assert intent.params["opening_id"] in {o["opening_id"] for o in payload["openings"]}
+
+    event = next(event for event in ctx.tick_events() if event.event_id == result.event_id)
+    assert event.actor == person.person_id
+    assert event.tick == ctx.tick
+
+
+def test_e_an_invented_identifier_is_still_refused(world):
+    """The fix hands the model real ids; it must not become a way to smuggle in a fake one."""
+
+    class Forger(GeminiTransportStub):
+        def complete(self, *, system: str, prompt: str, model: str, max_tokens: int) -> LLMResponse:
+            self.calls += 1
+            answer = json.dumps(
+                {"action": "post_online", "params": {"fact_id": "fact_i_made_this_up"}, "rationale": "no"}
+            )
+            return LLMResponse(text=answer, model=model, input_tokens=40, output_tokens=12)
+
+    stub = Forger()
+    gateway = gemini_gateway(stub)
+    ctx = world.kernel.ctx
+    _wake_the_city(world)
+
+    person = next(
+        p for p in _awake_persistent_people(world)
+        if "post_online" in [o.action for o in UtilityBrain().options(build_view(ctx, p))]
+    )
+    view = build_view(ctx, person)
+    view.salience = situation_importance(view)
+    allowed = [option.action for option in UtilityBrain().options(view)]
+
+    intent = gateway.propose(person, view, allowed, MODEL)
+    assert intent is not None, "the verb is permitted, so the gateway hands it on"
+
+    result = ctx.submit(intent)
+    assert not result.accepted, "a fact the agent does not know must not become a post"
+    assert result.reason == "unknown_fact"

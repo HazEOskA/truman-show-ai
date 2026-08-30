@@ -81,7 +81,25 @@ class AgentView:
         return self.perceived_prices.get(code, default)
 
     def to_prompt_payload(self) -> dict[str, Any]:
-        """Compact JSON payload for an LLM. Deliberately small: cost is a design constraint."""
+        """Compact JSON payload for an LLM. Deliberately small: cost is a design constraint.
+
+        The identifiers are here for a reason that took a failing end-to-end run to notice.
+        Several actions the world offers are not verbs on their own -- posting requires *which*
+        fact, applying requires *which* opening -- and their handlers read `params["fact_id"]`
+        and `params["opening_id"]`. A payload that described facts by topic and value but never
+        named them left a model able to choose `post_online` and structurally unable to pass
+        validation: every attempt came back `unknown_fact`. The rule doing the rejecting is
+        correct and stays exactly as it was; what was missing is that the view never told the
+        agent which of its own facts it was allowed to cite.
+
+        The keys are deliberately spelled the way the handlers read them. A model copying
+        `fact_id` out of `knows` into `params` is then doing the obvious thing rather than
+        guessing at a parameter name, and none of that guidance has to live in the prompt.
+
+        Nothing here widens what an agent knows. Every fact in `knows` is already in this
+        agent's own knowledge, and every opening in `openings` was already filtered by the
+        perception system to this agent's district and to positions still unfilled.
+        """
 
         return {
             "you": {
@@ -99,8 +117,27 @@ class AgentView:
             },
             "goals": self.goals[:4],
             "knows": [
-                {"topic": f.topic, "value": f.value, "confidence": f.confidence, "source": f.source}
+                {
+                    "fact_id": f.fact_id,
+                    "topic": f.topic,
+                    "value": f.value,
+                    "confidence": f.confidence,
+                    "source": f.source,
+                }
                 for f in self.known_facts[:8]
+            ],
+            # Only for someone who could actually take the job: `apply_for_job` rejects an
+            # already-employed applicant, so sending an employed agent a list of vacancies is
+            # tokens spent on an action the world would refuse anyway.
+            "openings": [
+                {
+                    "opening_id": o.opening_id,
+                    "role": o.role,
+                    "wage": round(o.wage_minor / 100.0, 2),
+                    "skill": o.skill,
+                    "skill_required": o.skill_required,
+                }
+                for o in (self.openings[:5] if not self.employed else [])
             ],
             "since_last_time": self.inbox[:6],
             "remembers": self.memories[:4],
