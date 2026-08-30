@@ -22,6 +22,7 @@ import type { CityLive, CityModel } from "@/lib/city/state";
 import { hourOf } from "@/lib/city/state";
 import { clampToCity, collidesWithBuilding, type PlayLayout, type PlayTarget } from "@/lib/world3d/adapter";
 import { consumeInteract, moveAxes, playInput } from "@/lib/world3d/input";
+import { buildStreetGraph, routeBetween, type Point } from "@/lib/world3d/route";
 
 export interface PlayTelemetry {
   x: number;
@@ -48,55 +49,44 @@ interface Props {
 /** How close the agent must be for a station to accept it. */
 const REACH = 14;
 
+/** How close to a waypoint counts as having reached it. */
+const WAYPOINT_REACH = 16;
+
 /**
- * Autopilot steering.
+ * Local steering toward the next waypoint.
  *
- * A straight line at the next station walks the agent into the first wall between here and
- * there and holds it against it, which on a jury's screen looks exactly like a bug. So the
- * heading is probed a short way ahead and, when it is blocked, fanned out to either side
- * until something is clear.
- *
- * The fan alone is not enough, and finding that out cost a run: a station stands at a
- * building's door, so the agent finishes each leg pressed into an alcove, and from inside one
- * every forward heading is blocked. Hence `detour` in the driver below -- when the distance
- * to the target stops falling, the agent commits to sliding along the obstacle for a couple
- * of seconds instead of re-picking a blocked heading sixty times a second. Together they are
- * still not a path finder, and do not need to be: the route runs along streets, and this only
- * has to get out of a doorway and round the corner of a block.
+ * The route itself comes from the street graph (`lib/world3d/route.ts`), so this only has to
+ * cover the last few metres onto and off the road, where a doorway or a kerb can still be in
+ * the way. The heading is probed a short distance ahead and, if blocked, fanned aside --
+ * nearly a full turn, because the way out of an alcove is often backwards.
  */
-function steer(
-  model: CityModel,
-  pos: { x: number; z: number },
-  target: { x: number; z: number }
-): { x: number; z: number } {
+function steer(model: CityModel, pos: Point, target: Point): Point {
   const heading = towards(pos, target);
   if (isClear(model, pos, heading)) return heading;
-  // Nearly a full turn: the way out of an alcove is often backwards.
-  for (const angle of [0.6, -0.6, 1.15, -1.15, 1.7, -1.7, 2.3, -2.3, 2.9, -2.9]) {
+  for (const angle of [0.5, -0.5, 1, -1, 1.5, -1.5, 2, -2, 2.6, -2.6, 3.1]) {
     const turned = rotate(heading, angle);
     if (isClear(model, pos, turned)) return turned;
   }
   return heading;
 }
 
-function towards(from: { x: number; z: number }, to: { x: number; z: number }): { x: number; z: number } {
+function towards(from: Point, to: Point): Point {
   const length = Math.max(1, Math.hypot(to.x - from.x, to.z - from.z));
   return { x: (to.x - from.x) / length, z: (to.z - from.z) / length };
 }
 
-function rotate(v: { x: number; z: number }, angle: number): { x: number; z: number } {
+function rotate(v: Point, angle: number): Point {
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   return { x: v.x * cos - v.z * sin, z: v.x * sin + v.z * cos };
 }
 
-function isClear(
-  model: CityModel,
-  pos: { x: number; z: number },
-  dir: { x: number; z: number },
-  probe = 18
-): boolean {
-  return !collidesWithBuilding(model, pos.x + dir.x * probe, pos.z + dir.z * probe, 3.2);
+function isClear(model: CityModel, pos: Point, dir: Point, probe = 14): boolean {
+  return !collidesWithBuilding(model, pos.x + dir.x * probe, pos.z + dir.z * probe, 2.6);
+}
+
+function near(a: Point, b: Point, radius: number): boolean {
+  return Math.hypot(a.x - b.x, a.z - b.z) < radius;
 }
 
 // -- the agent --------------------------------------------------------------------------
@@ -275,20 +265,33 @@ function PlayerDriver({
   const velocity = useRef(new THREE.Vector2());
   const movingRef = useRef(false);
   const arrivedAt = useRef<string | null>(null);
-  // Escape state: how close the agent has managed to get, when it last got closer, which way
-  // it is currently sliding, and until when.
-  const progress = useRef({ best: Number.POSITIVE_INFINITY, at: 0, sign: 1 });
-  const detour = useRef({ x: 0, z: 0, until: 0 });
+
+  // The street graph is built once per world; the route along it is planned once per leg.
+  const graph = useMemo(() => buildStreetGraph(model), [model]);
+  const path = useRef<Point[]>([]);
+  const waypoint = useRef(0);
+  /** Where the agent was when it last made progress, and when that was. */
+  const stall = useRef({ x: 0, z: 0, at: 0 });
 
   useEffect(() => {
     position.current.set(layout.spawn.x, 0.3, layout.spawn.z);
   }, [layout.spawn.x, layout.spawn.z]);
 
-  // The route is reset whenever the mission is: a new leg starts with no escape history.
+  // A new leg is a new plan, made from wherever the agent is standing now.
   useEffect(() => {
-    progress.current = { best: Number.POSITIVE_INFINITY, at: 0, sign: 1 };
-    detour.current = { x: 0, z: 0, until: 0 };
-  }, [objectiveIndex]);
+    const target = layout.targets[objectiveIndex];
+    if (!target) {
+      path.current = [];
+      return;
+    }
+    const from = { x: position.current.x, z: position.current.z };
+    const planned = routeBetween(graph, from, { x: target.x, z: target.z });
+    // An unroutable pair (a world whose streets do not connect two quarters) falls back to
+    // walking straight at the station rather than refusing to move.
+    path.current = planned.length ? planned : [{ x: target.x, z: target.z }];
+    waypoint.current = 0;
+    stall.current = { x: from.x, z: from.z, at: 0 };
+  }, [graph, layout, objectiveIndex]);
 
   useFrame((state, rawDt) => {
     const dt = Math.min(rawDt, 0.05);
@@ -303,22 +306,27 @@ function PlayerDriver({
 
     // Autopilot never fights the operator: the moment a key is held, manual input wins.
     if (!driving && autopilot && target && !paused && distance > REACH * 0.55) {
-      if (distance < progress.current.best - 1) {
-        progress.current.best = distance;
-        progress.current.at = now;
-      } else if (now - progress.current.at > 1.6 && now > detour.current.until) {
-        // No closer for a second and a half: stop re-picking a blocked heading and commit to
-        // sliding along whatever is in the way, alternating sides so a first guess into a
-        // dead end is not repeated.
-        const heading = towards(pos, target);
-        const sign = progress.current.sign;
-        let side = { x: -heading.z * sign, z: heading.x * sign };
-        if (!isClear(model, pos, side)) side = { x: -side.x, z: -side.z };
-        detour.current = { x: side.x, z: side.z, until: now + 2.4 };
-        progress.current.sign = -sign;
-        progress.current.at = now;
+      // Walk the planned waypoints, dropping each one as it is reached. The last entry is
+      // the station itself, so the final approach is a straight line to the door.
+      while (
+        waypoint.current < path.current.length - 1 &&
+        near(pos, path.current[waypoint.current], WAYPOINT_REACH)
+      ) {
+        waypoint.current += 1;
       }
-      axes = now < detour.current.until ? { x: detour.current.x, z: detour.current.z } : steer(model, pos, target);
+      // Watchdog. A waypoint the agent cannot actually reach -- a node the generator put
+      // inside a block, a doorway too tight for its collision radius -- would otherwise hold
+      // the mission still in front of the jury. Three seconds without moving four metres and
+      // the agent gives up on this waypoint and aims at the next one.
+      if (Math.hypot(pos.x - stall.current.x, pos.z - stall.current.z) > 4) {
+        stall.current = { x: pos.x, z: pos.z, at: now };
+      } else if (now - stall.current.at > 3) {
+        if (waypoint.current < path.current.length - 1) waypoint.current += 1;
+        stall.current = { x: pos.x, z: pos.z, at: now };
+      }
+
+      const next = path.current[waypoint.current] ?? { x: target.x, z: target.z };
+      axes = steer(model, pos, next);
     }
     if (paused) axes = { x: 0, z: 0 };
 
