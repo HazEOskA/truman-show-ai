@@ -2,18 +2,18 @@
 set -Eeuo pipefail
 
 # One-command Cloud Shell deploy for Hydra. This is intentionally a thin wrapper
-# around the repository's existing deploy path; it does not create the database,
-# change IAM, or invent a second deployment architecture.
+# around the repository's existing deploy path. Gemini uses Vertex AI with the
+# Cloud Run worker service account: no API key is created, pasted or mounted.
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 REGION="${REGION:-europe-central2}"
+VERTEX_LOCATION="${VERTEX_LOCATION:-global}"
 REPO="${REPO:-hydra}"
 TAG="${TAG:-latest}"
 SQL_INSTANCE_NAME="${SQL_INSTANCE_NAME:-hydra-db}"
 DSN_SECRET="${DSN_SECRET:-hydra-dsn}"
-GEMINI_SECRET="${GEMINI_SECRET:-gemini-api-key}"
 
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
@@ -42,7 +42,7 @@ printf 'Account : %s\n' "$ACTIVE_ACCOUNT"
 printf 'Region  : %s\n' "$REGION"
 printf 'SQL     : %s\n' "$SQL_INSTANCE"
 printf 'DSN sec : %s\n' "$DSN_SECRET"
-printf 'Gemini  : %s\n\n' "$GEMINI_SECRET"
+printf 'Gemini  : Vertex AI via Cloud Run service account (%s)\n\n' "$VERTEX_LOCATION"
 
 # Fail before spending Cloud Build time if required persistent resources are absent.
 gcloud sql instances describe "$SQL_INSTANCE_NAME" \
@@ -52,19 +52,10 @@ gcloud sql instances describe "$SQL_INSTANCE_NAME" \
 gcloud secrets describe "$DSN_SECRET" --project="$PROJECT_ID" >/dev/null 2>&1 || \
   fail "Secret '$DSN_SECRET' not found or inaccessible. Create the DSN secret per docs/DEPLOY.md first."
 
-if ! gcloud secrets describe "$GEMINI_SECRET" --project="$PROJECT_ID" >/dev/null 2>&1; then
-  cat >&2 <<MSG
-ERROR: Secret '$GEMINI_SECRET' not found or inaccessible.
-Create it from your Cloud Shell without putting the value in this script:
-
-  read -rsp 'Gemini API key: ' GEMINI_API_KEY; echo
-  printf '%s' \"\$GEMINI_API_KEY\" | gcloud secrets create '$GEMINI_SECRET' --data-file=- --project='$PROJECT_ID'
-  unset GEMINI_API_KEY
-
-Then rerun this script. No secret value is printed.
-MSG
-  exit 2
-fi
+printf '\n=== VERTEX AI ===\n'
+gcloud services enable aiplatform.googleapis.com \
+  --project="$PROJECT_ID" --quiet >/dev/null
+printf 'Vertex AI API     : enabled\n'
 
 printf '\n=== BUILD + DEPLOY (existing repository path) ===\n'
 python3 scripts/deploy_cloudrun.py \
@@ -75,21 +66,38 @@ python3 scripts/deploy_cloudrun.py \
   --sql-instance "$SQL_INSTANCE" \
   --dsn-secret "$DSN_SECRET"
 
-# deploy_cloudrun.py deliberately owns the stack topology. Add only the Gemini
-# secret reference here, preserving the worker's existing DB secret and env vars.
-printf '\n=== ATTACH GEMINI SECRET TO WORKER ===\n'
-gcloud run services update hydra-worker \
-  --project="$PROJECT_ID" \
-  --region="$REGION" \
-  --update-secrets="GEMINI_API_KEY=${GEMINI_SECRET}:latest" \
-  --quiet >/dev/null
-
 service_value() {
   local service="$1" field="$2"
   gcloud run services describe "$service" \
     --project="$PROJECT_ID" --region="$REGION" \
     --format="value(${field})"
 }
+
+# deploy_cloudrun.py does not replace the service account, so keep whatever the
+# worker already uses. If Cloud Run reports no explicit SA, it uses the project's
+# default Compute service account.
+WORKER_SA="$(service_value hydra-worker 'spec.template.spec.serviceAccountName')"
+if [[ -z "$WORKER_SA" ]]; then
+  PROJECT_NUMBER="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+  WORKER_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+fi
+
+printf '\n=== GEMINI AUTH: VERTEX / SERVICE ACCOUNT ===\n'
+printf 'Worker service account: %s\n' "$WORKER_SA"
+
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+  --member="serviceAccount:${WORKER_SA}" \
+  --role="roles/aiplatform.user" \
+  --condition=None \
+  --quiet >/dev/null
+
+gcloud run services update hydra-worker \
+  --project="$PROJECT_ID" \
+  --region="$REGION" \
+  --update-env-vars="GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${VERTEX_LOCATION}" \
+  --quiet >/dev/null
+
+printf 'Gemini credentials : ADC/service account (no API key)\n'
 
 ready_or_fail() {
   local service="$1"
@@ -127,7 +135,6 @@ printf 'Worker readiness : READY (Cloud Run latest revision passed startup/readi
 API_REV="$(service_value hydra-api 'status.latestReadyRevisionName')"
 OBS_REV="$(service_value hydra-observatory 'status.latestReadyRevisionName')"
 WORKER_REV="$(service_value hydra-worker 'status.latestReadyRevisionName')"
-WORKER_SA="$(service_value hydra-worker 'spec.template.spec.serviceAccountName')"
 
 cat <<SUMMARY
 
@@ -148,17 +155,19 @@ hydra-observatory
 hydra-worker
   URL      $WORKER_URL (private)
   revision $WORKER_REV
-  service account ${WORKER_SA:-<platform default>}
+  service account $WORKER_SA
+  Gemini auth Vertex AI / ADC
+  Vertex location $VERTEX_LOCATION
 
 Smoke:
   API /health  PASS
   Observatory  PASS
   Worker Ready PASS
 
-Jury live Gemini command (run from a trusted shell; do not paste the key into chat):
-  GEMINI_API_KEY="..." python3 scripts/jury_demo.py
+Cloud worker logs:
+  gcloud run services logs read hydra-worker --project=$PROJECT_ID --region=$REGION --limit=100
 
-Deterministic comparison run:
+Deterministic local comparison run:
   python3 scripts/run_world.py --seed 20260826 --days 1
 ============================================================
 SUMMARY
