@@ -47,6 +47,9 @@ class CreateWorldRequest(BaseModel):
     residents: int | None = None
     persistent_agents: int | None = None
     companies: int | None = None
+    llm_enabled: bool = False
+    llm_provider: str = "gemini"
+    llm_model: str = "gemini-3.5-flash"
 
 
 class ControlRequest(BaseModel):
@@ -91,6 +94,9 @@ def create_world(request: CreateWorldRequest) -> dict[str, Any]:
             residents=request.residents,
             persistent_agents=request.persistent_agents,
             companies=request.companies,
+            llm_enabled=request.llm_enabled,
+            llm_provider=request.llm_provider,
+            llm_model=request.llm_model,
         )
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
