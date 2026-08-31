@@ -3,11 +3,14 @@
 from .engine import RealityEngine
 from .model import (
     Condition,
+    ContinuousProcessDefinition,
+    ContinuousProcessInstance,
     Location,
     ProcessDefinition,
     ProcessInstance,
     ProcessStatus,
     ProvenanceEvent,
+    RateModifier,
     RealityState,
     ResourceBatch,
     ResourceDefinition,
@@ -15,11 +18,14 @@ from .model import (
 
 __all__ = [
     "Condition",
+    "ContinuousProcessDefinition",
+    "ContinuousProcessInstance",
     "Location",
     "ProcessDefinition",
     "ProcessInstance",
     "ProcessStatus",
     "ProvenanceEvent",
+    "RateModifier",
     "RealityEngine",
     "RealityState",
     "ResourceBatch",
