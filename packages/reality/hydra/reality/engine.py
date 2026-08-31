@@ -1,4 +1,4 @@
-"""Deterministic material/process engine for Hydra Reality Engine v0.1/v0.2."""
+"""Deterministic physical/process engine for Hydra Reality Engine v0.1-v0.3."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from .model import (
     ContinuousProcessDefinition,
     ContinuousProcessInstance,
     Location,
+    NaturalField,
     ProcessDefinition,
     ProcessInstance,
     ProcessStatus,
@@ -16,17 +17,19 @@ from .model import (
     RealityState,
     ResourceBatch,
     ResourceDefinition,
+    SeasonalSignal,
 )
 
 _EPSILON = 1e-9
 
 
 class RealityEngine:
-    """Owns material and continuous transitions.
+    """Own material, continuous and natural-field transitions.
 
-    No material output exists without an explicit source or a registered process.
-    Continuous processes modify scalar world state only through simulated time and
-    consume resources in proportion to actual progress.
+    No material output exists without an explicit source, a registered process,
+    or an extraction from physical natural stock. Natural fields remain outside
+    inventory until extraction, preventing double-counting of resources still
+    standing in a forest, aquifer or mineral deposit.
     """
 
     def __init__(self, state: RealityState | None = None) -> None:
@@ -68,6 +71,46 @@ class RealityEngine:
             raise ValueError(f"process {definition.code} uses unknown resources: {sorted(unknown)}")
         self.state.continuous_processes[definition.code] = definition
 
+    def register_seasonal_signal(self, signal: SeasonalSignal) -> None:
+        current = self.state.seasonal_signals.get(signal.metric)
+        if current is not None and current != signal:
+            raise ValueError(f"seasonal signal already registered differently: {signal.metric}")
+        self.state.seasonal_signals[signal.metric] = signal
+
+    def add_field(self, natural_field: NaturalField) -> NaturalField:
+        if natural_field.field_id in self.state.fields:
+            raise ValueError(f"field already exists: {natural_field.field_id}")
+        self._location(natural_field.location_id)
+
+        for rule in natural_field.rules:
+            if rule.stock_metric not in natural_field.stocks:
+                raise ValueError(
+                    f"field rule {rule.code} targets unknown stock: {rule.stock_metric}"
+                )
+            coupled = set(rule.input_stocks_per_unit) | set(rule.output_stocks_per_unit)
+            unknown = coupled - set(natural_field.stocks)
+            if unknown:
+                raise ValueError(
+                    f"field rule {rule.code} couples unknown stocks: {sorted(unknown)}"
+                )
+            if rule.stock_metric in coupled:
+                raise ValueError(
+                    f"field rule {rule.code} cannot couple its target stock to itself"
+                )
+
+        for stock_metric, resource_code in natural_field.extractable_as.items():
+            resource = self._resource(resource_code)
+            stock_unit = natural_field.stock_units[stock_metric]
+            if resource.unit != stock_unit:
+                raise ValueError(
+                    f"field stock {stock_metric} unit {stock_unit} does not match "
+                    f"resource {resource_code} unit {resource.unit}"
+                )
+
+        natural_field.last_updated_minute = self.state.minute
+        self.state.fields[natural_field.field_id] = natural_field
+        return natural_field
+
     # -- world state --------------------------------------------------------------
     def set_environment(self, metric: str, value: float, *, location_id: str | None = None) -> None:
         if location_id is None:
@@ -78,9 +121,17 @@ class RealityEngine:
     def set_state_variable(self, location_id: str, metric: str, value: float) -> None:
         self._location(location_id).state_variables[metric] = float(value)
 
+    def seasonal_environment(self, minute: float | None = None) -> dict[str, float]:
+        at = self.state.minute if minute is None else minute
+        return {
+            metric: signal.value_at(at)
+            for metric, signal in self.state.seasonal_signals.items()
+        }
+
     def environment_at(self, location_id: str) -> dict[str, float]:
         location = self._location(location_id)
-        merged = dict(self.state.environment)
+        merged = self.seasonal_environment()
+        merged.update(self.state.environment)
         merged.update(location.environment)
         merged.update(location.state_variables)
         return merged
@@ -94,7 +145,7 @@ class RealityEngine:
         *,
         source: str,
     ) -> ResourceBatch:
-        """Create explicit Genesis/natural stock with an auditable origin."""
+        """Create explicit Genesis/import stock with an auditable origin."""
 
         if not source.strip():
             raise ValueError("seed_resource requires a non-empty source")
@@ -122,6 +173,71 @@ class RealityEngine:
             quantity=float(quantity),
             output_batch_id=batch_id,
             source=source,
+        )
+        return batch
+
+    def extract_from_field(
+        self,
+        field_id: str,
+        stock_metric: str,
+        quantity: float,
+        *,
+        duration_minutes: int,
+    ) -> ResourceBatch:
+        """Move natural stock into material inventory after simulated extraction time.
+
+        This is deliberately not ``seed_resource``. The quantity is deducted
+        from an existing physical field stock and the resulting batch records
+        the field as its provenance source. v0.4 can place labour/equipment and
+        permits around this primitive without changing its accounting meaning.
+        """
+
+        if quantity <= 0:
+            raise ValueError("field extraction quantity must be positive")
+        if duration_minutes <= 0:
+            raise ValueError("field extraction must take positive simulated time")
+        field_state = self._field(field_id)
+        try:
+            resource_code = field_state.extractable_as[stock_metric]
+        except KeyError as exc:
+            raise ValueError(
+                f"field stock is not extractable: {field_id}.{stock_metric}"
+            ) from exc
+
+        # Extraction itself consumes world time, so every other running system
+        # continues to evolve while the operation is underway.
+        self.advance(duration_minutes)
+
+        available = field_state.quantity(stock_metric)
+        if available + _EPSILON < quantity:
+            raise ValueError(
+                f"insufficient field stock {field_id}.{stock_metric}: "
+                f"{available:.6f} < {quantity:.6f}"
+            )
+        field_state.stocks[stock_metric] = max(0.0, available - quantity)
+
+        resource = self._resource(resource_code)
+        location = self._location(field_state.location_id)
+        batch_id = self._next_batch_id()
+        event_id = self._next_event_id()
+        batch = ResourceBatch(
+            batch_id=batch_id,
+            resource_code=resource_code,
+            quantity=float(quantity),
+            unit=resource.unit,
+            created_minute=self.state.minute,
+            provenance_event_id=event_id,
+        )
+        location.add(batch)
+        self.state.provenance[event_id] = ProvenanceEvent(
+            event_id=event_id,
+            kind="field_extraction",
+            minute=self.state.minute,
+            process_id="",
+            resource_code=resource_code,
+            quantity=float(quantity),
+            output_batch_id=batch_id,
+            source=f"field:{field_id}:{stock_metric}",
         )
         return batch
 
@@ -213,6 +329,7 @@ class RealityEngine:
         target = self.state.minute + minutes
 
         while self.state.minute < target:
+            self._update_due_fields()
             self._finish_ready()
             remaining_window = target - self.state.minute
             boundaries: list[int] = [remaining_window]
@@ -230,11 +347,22 @@ class RealityEngine:
                 if boundary is not None:
                     boundaries.append(boundary)
 
+            for field_state in self.state.fields.values():
+                if not field_state.active or not field_state.rules:
+                    continue
+                until_due = (
+                    field_state.last_updated_minute
+                    + field_state.resolution_minutes
+                    - self.state.minute
+                )
+                boundaries.append(max(1, until_due))
+
             delta = max(1, min(boundaries))
             delta = min(delta, remaining_window)
             self._progress_fixed(delta)
             self._progress_continuous(delta)
             self.state.minute += delta
+            self._update_due_fields()
             self._finish_ready()
 
     # -- provenance ---------------------------------------------------------------
@@ -256,6 +384,92 @@ class RealityEngine:
 
         visit(batch_id)
         return ordered
+
+    # -- natural-field internals (v0.3) ------------------------------------------
+    def _update_due_fields(self) -> None:
+        for field_id in sorted(self.state.fields):
+            field_state = self.state.fields[field_id]
+            if not field_state.active or not field_state.rules:
+                continue
+            while (
+                field_state.last_updated_minute + field_state.resolution_minutes
+                <= self.state.minute
+            ):
+                end_minute = field_state.last_updated_minute + field_state.resolution_minutes
+                self._integrate_field(field_state, end_minute)
+                field_state.last_updated_minute = end_minute
+
+    def _integrate_field(self, field_state: NaturalField, end_minute: int) -> None:
+        start_minute = field_state.last_updated_minute
+        delta_minutes = end_minute - start_minute
+        if delta_minutes <= 0:
+            return
+        delta_days = delta_minutes / 1440.0
+        midpoint = start_minute + delta_minutes / 2.0
+
+        location = self._location(field_state.location_id)
+        environment = {
+            metric: signal.value_at(midpoint)
+            for metric, signal in self.state.seasonal_signals.items()
+        }
+        environment.update(self.state.environment)
+        environment.update(location.environment)
+        environment.update(location.state_variables)
+        environment.update(field_state.environment)
+
+        for rule in sorted(field_state.rules, key=lambda item: item.code):
+            # Later rules in the same field interval can react to stocks changed
+            # by earlier rules (rain recharge before growth, for example).
+            environment.update(field_state.stocks)
+            if not all(condition.accepts(environment) for condition in rule.conditions):
+                continue
+
+            factor = 1.0
+            for modifier in rule.rate_modifiers:
+                factor *= modifier.factor(environment)
+            if factor <= _EPSILON:
+                continue
+
+            current = field_state.stocks[rule.stock_metric]
+            change = rule.base_rate_per_day * delta_days * factor
+            if change > 0 and rule.logistic and rule.maximum_value is not None:
+                carrying = max(_EPSILON, rule.maximum_value)
+                change *= max(0.0, 1.0 - current / carrying)
+
+            if change > 0:
+                if rule.maximum_value is not None:
+                    change = min(change, max(0.0, rule.maximum_value - current))
+            else:
+                change = max(change, rule.minimum_value - current)
+
+            magnitude = abs(change)
+            if magnitude <= _EPSILON:
+                continue
+
+            for stock_metric, per_unit in rule.input_stocks_per_unit.items():
+                if per_unit <= _EPSILON:
+                    continue
+                magnitude = min(
+                    magnitude,
+                    field_state.stocks[stock_metric] / per_unit,
+                )
+            if magnitude <= _EPSILON:
+                continue
+
+            signed_change = magnitude if change > 0 else -magnitude
+            for stock_metric, per_unit in rule.input_stocks_per_unit.items():
+                field_state.stocks[stock_metric] = max(
+                    0.0,
+                    field_state.stocks[stock_metric] - per_unit * magnitude,
+                )
+
+            field_state.stocks[rule.stock_metric] = min(
+                rule.maximum_value if rule.maximum_value is not None else math.inf,
+                max(rule.minimum_value, current + signed_change),
+            )
+
+            for stock_metric, per_unit in rule.output_stocks_per_unit.items():
+                field_state.stocks[stock_metric] += per_unit * magnitude
 
     # -- finite internals ---------------------------------------------------------
     def _progress_fixed(self, delta: int) -> None:
@@ -466,6 +680,12 @@ class RealityEngine:
             return self.state.locations[location_id]
         except KeyError as exc:
             raise KeyError(f"unknown location: {location_id}") from exc
+
+    def _field(self, field_id: str) -> NaturalField:
+        try:
+            return self.state.fields[field_id]
+        except KeyError as exc:
+            raise KeyError(f"unknown natural field: {field_id}") from exc
 
     def _next_batch_id(self) -> str:
         self.state.next_batch_index += 1
