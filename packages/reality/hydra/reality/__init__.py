@@ -5,7 +5,10 @@ from .model import (
     Condition,
     ContinuousProcessDefinition,
     ContinuousProcessInstance,
+    FieldKind,
+    FieldRule,
     Location,
+    NaturalField,
     ProcessDefinition,
     ProcessInstance,
     ProcessStatus,
@@ -14,13 +17,17 @@ from .model import (
     RealityState,
     ResourceBatch,
     ResourceDefinition,
+    SeasonalSignal,
 )
 
 __all__ = [
     "Condition",
     "ContinuousProcessDefinition",
     "ContinuousProcessInstance",
+    "FieldKind",
+    "FieldRule",
     "Location",
+    "NaturalField",
     "ProcessDefinition",
     "ProcessInstance",
     "ProcessStatus",
@@ -30,4 +37,5 @@ __all__ = [
     "RealityState",
     "ResourceBatch",
     "ResourceDefinition",
+    "SeasonalSignal",
 ]
