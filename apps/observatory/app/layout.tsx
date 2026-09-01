@@ -1,11 +1,18 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import "./globals.css";
+import "./observatory-mobile.css";
 import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
-  title: "Hydra World — Command Observatory",
-  description: "Live command surface for the deterministic Hydra World simulation"
+  title: "Hydra World Observatory",
+  description: "Live observatory and control surface for the deterministic Hydra World simulation"
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover"
 };
 
 /**
@@ -33,7 +40,7 @@ function apiUrl(): string {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const api = apiUrl();
   return (
-    <html lang="en">
+    <html lang="pl">
       <head>
         <script
           // JSON.stringify escapes the value, so a hostile env var cannot break out of the
