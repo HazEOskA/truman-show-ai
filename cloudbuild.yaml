@@ -19,6 +19,7 @@ options:
 images:
   - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/api:${_TAG}"
   - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/worker:${_TAG}"
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/observatory:${_TAG}"
 
 steps:
   - id: api
@@ -51,36 +52,6 @@ steps:
       - docker/observatory.Dockerfile
       - -t
       - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/observatory:${_TAG}"
-      - -t
-      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/observatory:${COMMIT_SHA}"
       - .
-
-  # Push the Observatory explicitly before Cloud Run tries to resolve the immutable
-  # commit tag. The images block above is pushed only after all build steps complete.
-  - id: push-observatory-latest
-    name: gcr.io/cloud-builders/docker
-    args:
-      - push
-      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/observatory:${_TAG}"
-
-  - id: push-observatory-commit
-    name: gcr.io/cloud-builders/docker
-    args:
-      - push
-      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/observatory:${COMMIT_SHA}"
-
-  - id: deploy-observatory
-    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
-    entrypoint: gcloud
-    args:
-      - run
-      - deploy
-      - hydra-observatory
-      - "--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/observatory:${COMMIT_SHA}"
-      - "--region=${_REGION}"
-      - "--project=${PROJECT_ID}"
-      - --platform=managed
-      - "--update-env-vars=HYDRA_COMMIT_SHA=${COMMIT_SHA}"
-      - --quiet
 
 timeout: 1800s
