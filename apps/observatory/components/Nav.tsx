@@ -4,66 +4,51 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { LanguageSwitch, useI18n } from "@/components/I18n";
+
 type NavItem = {
   href: string;
-  label: string;
+  labelKey: string;
   code: string;
 };
 
-const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+const NAV_GROUPS: { labelKey: string; items: NavItem[] }[] = [
   {
-    label: "Command",
+    labelKey: "nav.command",
     items: [
-      { href: "/", label: "Command Center", code: "00" },
-      { href: "/hydra", label: "Hydra Core", code: "01" }
+      { href: "/", labelKey: "nav.commandCenter", code: "00" },
+      { href: "/preview", labelKey: "nav.preview", code: "P0" },
+      { href: "/hydra", labelKey: "nav.hydraCore", code: "01" }
     ]
   },
   {
-    label: "World",
+    labelKey: "nav.world",
     items: [
-      { href: "/city", label: "City View", code: "02" },
-      { href: "/city/play", label: "Play City", code: "03" },
-      { href: "/map", label: "Spatial Map", code: "04" }
+      { href: "/city", labelKey: "nav.cityView", code: "02" },
+      { href: "/city/play", labelKey: "nav.playCity", code: "03" },
+      { href: "/map", labelKey: "nav.spatialMap", code: "04" }
     ]
   },
   {
-    label: "Civilization",
+    labelKey: "nav.civilization",
     items: [
-      { href: "/people", label: "People", code: "05" },
-      { href: "/companies", label: "Companies", code: "06" },
-      { href: "/economy", label: "Economy", code: "07" },
-      { href: "/government", label: "Government", code: "08" }
+      { href: "/people", labelKey: "nav.people", code: "05" },
+      { href: "/companies", labelKey: "nav.companies", code: "06" },
+      { href: "/economy", labelKey: "nav.economy", code: "07" },
+      { href: "/government", labelKey: "nav.government", code: "08" }
     ]
   },
   {
-    label: "Intelligence",
+    labelKey: "nav.intelligence",
     items: [
-      { href: "/media", label: "Media", code: "09" },
-      { href: "/technology", label: "Technology", code: "10" },
-      { href: "/culture", label: "Culture", code: "11" },
-      { href: "/events", label: "Event Ledger", code: "12" },
-      { href: "/causal", label: "Causal Graph", code: "13" },
-      { href: "/timeline", label: "Timelines", code: "14" }
+      { href: "/media", labelKey: "nav.media", code: "09" },
+      { href: "/technology", labelKey: "nav.technology", code: "10" },
+      { href: "/culture", labelKey: "nav.culture", code: "11" },
+      { href: "/events", labelKey: "nav.events", code: "12" },
+      { href: "/causal", labelKey: "nav.causal", code: "13" },
+      { href: "/timeline", labelKey: "nav.timeline", code: "14" }
     ]
   }
-];
-
-const LEGACY_LINKS: [string, string][] = [
-  ["/", "World"],
-  ["/city", "City View"],
-  ["/city/play", "Play City"],
-  ["/map", "Map"],
-  ["/hydra", "Hydra"],
-  ["/people", "People"],
-  ["/companies", "Companies"],
-  ["/economy", "Economy"],
-  ["/government", "Governments"],
-  ["/media", "Media"],
-  ["/technology", "Technology"],
-  ["/culture", "Culture"],
-  ["/events", "Events"],
-  ["/causal", "Causal graph"],
-  ["/timeline", "Timeline"]
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -83,66 +68,31 @@ function HydraMark() {
   );
 }
 
-function LegacyNav({ pathname }: { pathname: string }) {
-  return (
-    <nav className="sidebar sidebar--legacy" aria-label="Hydra navigation">
-      <div className="brand brand--legacy">
-        <h1>Hydra</h1>
-        <small>World Observatory</small>
-      </div>
-      <div className="nav nav--legacy">
-        {LEGACY_LINKS.map(([href, label]) => (
-          <Link key={href} href={href} className={isActive(pathname, href) ? "active" : ""}>
-            {label}
-          </Link>
-        ))}
-      </div>
-    </nav>
-  );
-}
-
-export default function Nav() {
-  const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-
-  if (pathname === "/city/play") return <LegacyNav pathname={pathname} />;
+function DesktopNav({ pathname }: { pathname: string }) {
+  const { t } = useI18n();
 
   return (
-    <nav className={open ? "sidebar sidebar--command is-open" : "sidebar sidebar--command"} aria-label="Hydra navigation">
+    <nav className="sidebar sidebar--command desktop-observatory-nav" aria-label="Hydra navigation">
       <div className="brand brand--command">
-        <Link href="/" className="brand-lockup" onClick={() => setOpen(false)} aria-label="Hydra Command Center">
+        <Link href="/" className="brand-lockup" aria-label="Hydra World Observatory">
           <span className="brand-symbol"><HydraMark /></span>
           <span className="brand-copy">
-            <strong>OSA // HYDRA</strong>
-            <small>World Observatory</small>
+            <strong>HYDRA WORLD</strong>
+            <small>{t("brand.subtitle")}</small>
           </span>
         </Link>
-        <button
-          type="button"
-          className="nav-toggle"
-          aria-expanded={open}
-          aria-label={open ? "Close navigation" : "Open navigation"}
-          onClick={() => setOpen((value) => !value)}
-        >
-          <span />
-          <span />
-        </button>
+        <div className="desktop-language-row"><LanguageSwitch compact /></div>
       </div>
 
       <div className="nav-command-scroll">
         {NAV_GROUPS.map((group) => (
-          <div className="nav-group" key={group.label}>
-            <div className="nav-group-label">{group.label}</div>
+          <div className="nav-group" key={group.labelKey}>
+            <div className="nav-group-label">{t(group.labelKey)}</div>
             <div className="nav nav--command-list">
               {group.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={isActive(pathname, item.href) ? "active" : ""}
-                  onClick={() => setOpen(false)}
-                >
+                <Link key={item.href} href={item.href} className={isActive(pathname, item.href) ? "active" : ""}>
                   <span className="nav-code">{item.code}</span>
-                  <span>{item.label}</span>
+                  <span>{t(item.labelKey)}</span>
                   <span className="nav-arrow" aria-hidden="true">↗</span>
                 </Link>
               ))}
@@ -154,11 +104,91 @@ export default function Nav() {
       <div className="sidebar-status">
         <span className="status-orb" aria-hidden="true" />
         <span>
-          <strong>WORLD LINK</strong>
-          <small>OBSERVATORY ONLINE</small>
+          <strong>{t("nav.worldLink")}</strong>
+          <small>{t("nav.online")}</small>
         </span>
-        <b>LIVE</b>
+        <b>{t("nav.live")}</b>
       </div>
     </nav>
+  );
+}
+
+function MobileNavigation({ pathname }: { pathname: string }) {
+  const { t } = useI18n();
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  const bottomItems = [
+    { href: "/", label: t("mobile.world"), icon: "◈" },
+    { href: "/people", label: t("mobile.people"), icon: "◎" },
+    { href: "/hydra", label: t("mobile.systems"), icon: "⌁" },
+    { href: "/causal", label: t("mobile.lab"), icon: "◇" }
+  ];
+
+  return (
+    <>
+      <header className="mobile-observatory-topbar">
+        <Link href="/" className="mobile-brand" aria-label="Hydra World Observatory">
+          <span className="mobile-brand-mark"><HydraMark /></span>
+          <span>
+            <strong>HYDRA</strong>
+            <small>WORLD OBSERVATORY</small>
+          </span>
+        </Link>
+        <div className="mobile-topbar-actions">
+          <span className="mobile-live"><i />{t("nav.live")}</span>
+          <LanguageSwitch compact />
+        </div>
+      </header>
+
+      <nav className="mobile-bottom-nav" aria-label="Mobile Hydra navigation">
+        {bottomItems.map((item) => (
+          <Link key={item.href} href={item.href} className={isActive(pathname, item.href) ? "active" : ""}>
+            <span className="mobile-nav-icon" aria-hidden="true">{item.icon}</span>
+            <span>{item.label}</span>
+          </Link>
+        ))}
+        <button type="button" className={moreOpen ? "active" : ""} onClick={() => setMoreOpen((value) => !value)} aria-expanded={moreOpen}>
+          <span className="mobile-nav-icon" aria-hidden="true">•••</span>
+          <span>{t("mobile.more")}</span>
+        </button>
+      </nav>
+
+      {moreOpen ? (
+        <div className="mobile-more-backdrop" onClick={() => setMoreOpen(false)}>
+          <section className="mobile-more-sheet" onClick={(event) => event.stopPropagation()} aria-label={t("nav.more")}>
+            <div className="mobile-sheet-handle" />
+            <div className="mobile-sheet-title">{t("nav.more")}</div>
+            <div className="mobile-sheet-grid">
+              {[
+                ["/city", "nav.cityView", "▦"],
+                ["/city/play", "nav.playCity", "▶"],
+                ["/map", "nav.spatialMap", "⌖"],
+                ["/events", "nav.events", "≋"],
+                ["/timeline", "nav.timeline", "↦"],
+                ["/economy", "nav.economy", "⌁"],
+                ["/companies", "nav.companies", "▤"],
+                ["/preview", "nav.preview", "▣"]
+              ].map(([href, labelKey, icon]) => (
+                <Link key={href} href={href} onClick={() => setMoreOpen(false)}>
+                  <span aria-hidden="true">{icon}</span>
+                  <strong>{t(labelKey)}</strong>
+                </Link>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+export default function Nav() {
+  const pathname = usePathname();
+
+  return (
+    <>
+      <DesktopNav pathname={pathname} />
+      <MobileNavigation pathname={pathname} />
+    </>
   );
 }
