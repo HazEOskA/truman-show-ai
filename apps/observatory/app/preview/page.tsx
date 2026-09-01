@@ -5,10 +5,10 @@ import Link from "next/link";
 import { useI18n } from "@/components/I18n";
 
 const EVENTS = [
-  ["02:13:10", "Grid stabilised after demand spike", "OK"],
-  ["02:11:42", "Forest field biomass updated", "+0.8%"],
-  ["02:09:03", "Company production cycle completed", "LIVE"],
-  ["02:06:18", "Citizen changed workplace location", "OBS"],
+  ["02:13:10", "preview.event.grid", "OK"],
+  ["02:11:42", "preview.event.forest", "+0.8%"],
+  ["02:09:03", "preview.event.company", "LIVE"],
+  ["02:06:18", "preview.event.citizen", "OBS"],
 ];
 
 export default function ObservatoryPreviewPage() {
@@ -68,16 +68,16 @@ export default function ObservatoryPreviewPage() {
           <article className="preview-card">
             <header className="preview-card-head">
               <div>
-                <span className="preview-section-label">EVENT STREAM</span>
+                <span className="preview-section-label">{t("preview.eventStream")}</span>
                 <strong>{t("preview.activity")}</strong>
               </div>
             </header>
             <div className="preview-list">
-              {EVENTS.map(([time, event, state]) => (
-                <div className="preview-list-row" key={`${time}-${event}`}>
+              {EVENTS.map(([time, eventKey, state]) => (
+                <div className="preview-list-row" key={`${time}-${eventKey}`}>
                   <i />
                   <div>
-                    <strong>{event}</strong>
+                    <strong>{t(eventKey)}</strong>
                     <small>{time}</small>
                   </div>
                   <b>{state}</b>
@@ -89,7 +89,7 @@ export default function ObservatoryPreviewPage() {
           <article className="preview-card">
             <header className="preview-card-head">
               <div>
-                <span className="preview-section-label">WORLD SYSTEMS</span>
+                <span className="preview-section-label">{t("preview.worldSystems")}</span>
                 <strong>{t("preview.systems")}</strong>
               </div>
             </header>
@@ -120,7 +120,7 @@ export default function ObservatoryPreviewPage() {
           <article className="preview-card">
             <header className="preview-card-head">
               <div>
-                <span className="preview-section-label">RUNTIME</span>
+                <span className="preview-section-label">{t("preview.runtimeLabel")}</span>
                 <strong>{t("preview.runtime")}</strong>
               </div>
             </header>
