@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./observatory-mobile.css";
+import "./observatory-mobile-home.css";
 import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
