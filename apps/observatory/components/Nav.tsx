@@ -68,6 +68,35 @@ function HydraMark() {
   );
 }
 
+function LegacyPlayNav({ pathname }: { pathname: string }) {
+  const { t } = useI18n();
+  const links: [string, string][] = [
+    ["/", "nav.commandCenter"],
+    ["/city", "nav.cityView"],
+    ["/city/play", "nav.playCity"],
+    ["/map", "nav.spatialMap"],
+    ["/people", "nav.people"],
+    ["/events", "nav.events"],
+    ["/causal", "nav.causal"]
+  ];
+
+  return (
+    <nav className="sidebar sidebar--legacy desktop-observatory-nav" aria-label="Hydra navigation">
+      <div className="brand brand--legacy">
+        <h1>Hydra</h1>
+        <small>World Observatory</small>
+      </div>
+      <div className="nav nav--legacy">
+        {links.map(([href, labelKey]) => (
+          <Link key={href} href={href} className={isActive(pathname, href) ? "active" : ""}>
+            {t(labelKey)}
+          </Link>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
 function DesktopNav({ pathname }: { pathname: string }) {
   const { t } = useI18n();
 
@@ -187,7 +216,7 @@ export default function Nav() {
 
   return (
     <>
-      <DesktopNav pathname={pathname} />
+      {pathname === "/city/play" ? <LegacyPlayNav pathname={pathname} /> : <DesktopNav pathname={pathname} />}
       <MobileNavigation pathname={pathname} />
     </>
   );
