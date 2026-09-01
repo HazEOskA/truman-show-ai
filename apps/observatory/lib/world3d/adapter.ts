@@ -68,10 +68,10 @@ export function buildPlayLayout(model: CityModel): PlayLayout {
   while (picked.length < 4 && byDistance[picked.length]) picked.push(byDistance[picked.length]);
 
   const defs: Array<[ObjectiveKind, string, string]> = [
-    ["terminal", "AKTYWUJ TERMINAL SIECI", "#39e6ff"],
-    ["contact", "SKONTAKTUJ VEKT-7", "#3cffd4"],
-    ["contact", "SKONTAKTUJ LUMEN", "#d18bff"],
-    ["relay", "WYZWÓL PRZEKAŹNIK", "#ffe14d"]
+    ["terminal", "play.objective.terminal", "#39e6ff"],
+    ["contact", "play.objective.vekt", "#3cffd4"],
+    ["contact", "play.objective.lumen", "#d18bff"],
+    ["relay", "play.objective.relay", "#ffe14d"]
   ];
 
   const targets = picked.map((building, index) => {

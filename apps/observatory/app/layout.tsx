@@ -1,10 +1,20 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import Nav from "@/components/Nav";
+import "./observatory-mobile.css";
+import "./observatory-mobile-home.css";
+import "./observatory-mobile-full.css";
+import "./observatory-mobile-device.css";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
-  title: "Hydra World — Observatory",
-  description: "Read-first observatory for the Hydra World simulation"
+  title: "HYDRA WORLD OBSERVATORY",
+  description: "Autonomiczny świat na żywo — obserwatorium i panel sterowania Hydra World"
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover"
 };
 
 /**
@@ -32,8 +42,10 @@ function apiUrl(): string {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const api = apiUrl();
   return (
-    <html lang="en">
+    <html lang="pl">
       <head>
+        <meta name="hydra-commit" content={process.env.HYDRA_COMMIT_SHA || "unknown"} />
+        <meta name="hydra-revision" content={process.env.K_REVISION || "unknown"} />
         <script
           // JSON.stringify escapes the value, so a hostile env var cannot break out of the
           // script tag it is written into.
@@ -43,10 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <div className="shell">
-          <Nav />
-          <main className="main">{children}</main>
-        </div>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

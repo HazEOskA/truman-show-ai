@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Guard, Header, useView } from "@/components/Page";
+import { useI18n } from "@/components/I18n";
 import { fmt, Json, money, pct, useSelection } from "@/lib/api";
 
 export default function PeoplePage() {
+  const { t, term } = useI18n();
   const [tier, setTier] = useState("");
   const [query, setQuery] = useState("");
   const { timelineId } = useSelection();
@@ -17,13 +19,13 @@ export default function PeoplePage() {
 
   return (
     <>
-      <Header title="People" right={data ? `${fmt(data.total, 0)} individually simulated` : ""} />
+      <Header title={t("people.title")} right={data ? t("people.simulated", { count: fmt(data.total, 0) }) : ""} />
       <div className="card" style={{ marginBottom: 12 }}>
         <div className="row">
-          <button className={tier === "" ? "primary" : ""} onClick={() => setTier("")}>All</button>
-          <button className={tier === "A" ? "primary" : ""} onClick={() => setTier("A")}>Tier A — persistent</button>
-          <button className={tier === "B" ? "primary" : ""} onClick={() => setTier("B")}>Tier B — lightweight</button>
-          <input placeholder="name or occupation" value={query} onChange={(e) => setQuery(e.target.value)} />
+          <button className={tier === "" ? "primary" : ""} onClick={() => setTier("")}>{t("people.tierAll")}</button>
+          <button className={tier === "A" ? "primary" : ""} onClick={() => setTier("A")}>{t("people.tierA")}</button>
+          <button className={tier === "B" ? "primary" : ""} onClick={() => setTier("B")}>{t("people.tierB")}</button>
+          <input placeholder={t("people.search")} aria-label={t("people.search")} value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
       </div>
       <Guard loading={loading} error={error} data={data}>
@@ -32,9 +34,9 @@ export default function PeoplePage() {
             <table>
               <thead>
                 <tr>
-                  <th>Name</th><th>Tier</th><th className="num">Age</th><th>District</th><th>Occupation</th>
-                  <th>Status</th><th className="num">Wealth</th><th className="num">Energy</th>
-                  <th className="num">Stress</th><th className="num">Trust</th><th>Activity</th>
+                  <th>{t("people.name")}</th><th>{t("people.tier")}</th><th className="num">{t("people.age")}</th><th>{t("people.district")}</th><th>{t("people.occupation")}</th>
+                  <th>{t("people.status")}</th><th className="num">{t("people.wealth")}</th><th className="num">{t("people.energy")}</th>
+                  <th className="num">{t("people.stress")}</th><th className="num">{t("people.trust")}</th><th>{t("people.activity")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -46,13 +48,13 @@ export default function PeoplePage() {
                     <td className="muted">{person.tier}</td>
                     <td className="num">{fmt(person.age, 0)}</td>
                     <td className="muted">{String(person.district).replace("district_", "")}</td>
-                    <td>{person.occupation}</td>
-                    <td className={person.employment === "unemployed" ? "bad" : "muted"}>{person.employment}</td>
+                    <td>{term(person.occupation)}</td>
+                    <td className={person.employment === "unemployed" ? "bad" : "muted"}>{term(person.employment)}</td>
                     <td className="num">{money(person.wealth)}</td>
                     <td className="num">{pct(person.energy, 0)}</td>
                     <td className={`num ${person.stress > 0.6 ? "warn" : ""}`}>{pct(person.stress, 0)}</td>
                     <td className="num">{pct(person.political_trust, 0)}</td>
-                    <td className="muted">{person.activity}</td>
+                    <td className="muted">{term(person.activity)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -61,7 +63,7 @@ export default function PeoplePage() {
         </div>
       </Guard>
       <p className="muted" style={{ marginTop: 10 }}>
-        world {worldId || "—"} · timeline {timelineId}
+        {t("common.worldTimeline", { world: worldId || "—", timeline: timelineId })}
       </p>
     </>
   );

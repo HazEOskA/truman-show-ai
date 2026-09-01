@@ -1,6 +1,7 @@
 "use client";
 
 import { Json, usePolling, useSelection } from "@/lib/api";
+import { useI18n } from "@/components/I18n";
 
 /** Every view is the same shape: pick a world, poll one projection, render it. */
 export function useView<T = Json>(path: string, intervalMs = 3000) {
@@ -12,7 +13,7 @@ export function useView<T = Json>(path: string, intervalMs = 3000) {
 
 export function Header({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
-    <div className="topbar">
+    <div className="topbar route-topbar">
       <h2>{title}</h2>
       {right ? <div className="clock">{right}</div> : null}
     </div>
@@ -30,8 +31,9 @@ export function Guard({
   data: unknown;
   children: React.ReactNode;
 }) {
-  if (error) return <div className="error">{error}</div>;
-  if (loading) return <div className="empty">loading…</div>;
-  if (!data) return <div className="empty">No world selected — open the World view first.</div>;
-  return <>{children}</>;
+  const { t } = useI18n();
+  if (error) return <div className="error route-state" role="alert">{t("common.error", { message: error })}</div>;
+  if (loading) return <div className="empty route-state" role="status">{t("common.loading")}</div>;
+  if (!data) return <div className="empty route-state">{t("guard.noWorld")}</div>;
+  return <div className="route-content">{children}</div>;
 }

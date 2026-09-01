@@ -2,19 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Guard, Header, useView } from "@/components/Page";
+import { useI18n } from "@/components/I18n";
 import { fmt, Json, pct } from "@/lib/api";
 
 type Metric = "wealth_index" | "unrest" | "pollution" | "power_reliability" | "population";
 
 const METRICS: [Metric, string][] = [
-  ["wealth_index", "Wealth"],
-  ["unrest", "Unrest"],
-  ["pollution", "Pollution"],
-  ["power_reliability", "Power reliability"],
-  ["population", "Population"]
+  ["wealth_index", "map.wealth"],
+  ["unrest", "map.unrest"],
+  ["pollution", "map.pollution"],
+  ["power_reliability", "map.powerReliability"],
+  ["population", "map.population"]
 ];
 
 export default function MapPage() {
+  const { t } = useI18n();
   const { data, error, loading } = useView<Json>("/city", 2000);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [metric, setMetric] = useState<Metric>("wealth_index");
@@ -79,13 +81,13 @@ export default function MapPage() {
 
   return (
     <>
-      <Header title="Map" right={data ? `${(data.districts as Json[]).length} districts` : ""} />
+      <Header title={t("map.title")} right={data ? t("map.districts", { count: (data.districts as Json[]).length }) : ""} />
       <Guard loading={loading} error={error} data={data}>
         <div className="card">
           <div className="row" style={{ marginBottom: 10 }}>
-            {METRICS.map(([key, label]) => (
+            {METRICS.map(([key, labelKey]) => (
               <button key={key} className={metric === key ? "primary" : ""} onClick={() => setMetric(key)}>
-                {label}
+                {t(labelKey)}
               </button>
             ))}
           </div>
@@ -93,6 +95,8 @@ export default function MapPage() {
             ref={canvasRef}
             width={900}
             height={520}
+            role="img"
+            aria-label={t("map.canvas")}
             style={{ width: "100%", maxWidth: 900, border: "1px solid var(--line)", borderRadius: 6 }}
             onMouseLeave={() => setHover(null)}
           />

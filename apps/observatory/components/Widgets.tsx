@@ -1,20 +1,24 @@
 "use client";
 
 import { fmt } from "@/lib/api";
+import { useI18n } from "@/components/I18n";
 
 export function Stat({
   label,
   value,
   hint,
-  tone
+  tone,
+  accent = "cyan"
 }: {
   label: string;
   value: string | number;
   hint?: string;
   tone?: "good" | "bad" | "warn";
+  accent?: "cyan" | "violet" | "magenta" | "amber" | "green" | "blue";
 }) {
   return (
-    <div className="card stat">
+    <div className="card stat" data-accent={accent}>
+      <span className="stat-signal" aria-hidden="true" />
       <div className="label">{label}</div>
       <div className={`value ${tone ?? ""}`}>{value}</div>
       {hint ? <div className="delta muted">{hint}</div> : null}
@@ -34,8 +38,9 @@ export function Spark({
   height?: number;
   colour?: string;
 }) {
+  const { t } = useI18n();
   if (!points || points.length < 2) {
-    return <div className="muted">no history yet</div>;
+    return <div className="muted">{t("widget.noHistory")}</div>;
   }
   const min = Math.min(...points);
   const max = Math.max(...points);
@@ -49,7 +54,8 @@ export function Spark({
     })
     .join(" ");
   return (
-    <svg width={width} height={height} role="img" aria-label="trend">
+    <svg className="sparkline" width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label={t("a11y.trend")}>
+      <path d={`M0,${height - 1} H${width}`} fill="none" stroke="var(--line)" strokeWidth="1" />
       <path d={path} fill="none" stroke={colour} strokeWidth="1.4" />
     </svg>
   );

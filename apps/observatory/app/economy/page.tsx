@@ -1,44 +1,46 @@
 "use client";
 
 import { Guard, Header, useView } from "@/components/Page";
+import { useI18n } from "@/components/I18n";
 import { Spark, Stat } from "@/components/Widgets";
 import { fmt, Json, money, pct } from "@/lib/api";
 
 export default function EconomyPage() {
+  const { t, term } = useI18n();
   const { data, error, loading } = useView<Json>("/economy", 2500);
   return (
     <>
-      <Header title="Economy" right={data ? `${data.currency} · ${fmt(data.transactions, 0)} transactions` : ""} />
+      <Header title={t("economy.title")} right={data ? t("economy.summary", { currency: data.currency, count: fmt(data.transactions, 0) }) : ""} />
       <Guard loading={loading} error={error} data={data}>
         {data ? (
           <>
             <div className="grid cols-6" style={{ marginBottom: 12 }}>
               <Stat label="CPI" value={fmt(data.cpi, 3)} />
-              <Stat label="Inflation (annualised)" value={pct(data.inflation_annual)} />
-              <Stat label="Unemployment" value={pct(data.unemployment)} />
-              <Stat label="Wage index" value={fmt(data.wage_index, 3)} />
-              <Stat label="Imports" value={money(data.imports)} />
-              <Stat label="Exports" value={money(data.exports)} />
+              <Stat label={t("economy.inflation")} value={pct(data.inflation_annual)} />
+              <Stat label={t("economy.unemployment")} value={pct(data.unemployment)} />
+              <Stat label={t("economy.wageIndex")} value={fmt(data.wage_index, 3)} />
+              <Stat label={t("economy.imports")} value={money(data.imports)} />
+              <Stat label={t("economy.exports")} value={money(data.exports)} />
             </div>
 
             <div className="grid cols-2">
               <div className="card">
-                <h3>Markets</h3>
+                <h3>{t("economy.markets")}</h3>
                 <div className="scroll" style={{ maxHeight: 520 }}>
                   <table>
                     <thead>
                       <tr>
-                        <th>Good</th><th className="num">Price</th><th className="num">Unit cost</th>
-                        <th className="num">Demand</th><th className="num">Stock</th><th>Trend</th>
+                        <th>{t("economy.good")}</th><th className="num">{t("economy.price")}</th><th className="num">{t("economy.unitCost")}</th>
+                        <th className="num">{t("economy.demand")}</th><th className="num">{t("economy.stock")}</th><th>{t("economy.trend")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(data.markets as Json[]).map((market) => (
                         <tr key={market.code}>
                           <td>
-                            {market.name}
-                            {market.essential ? <span className="pill" style={{ marginLeft: 6 }}>essential</span> : null}
-                            {market.shortage_ticks > 0 ? <span className="pill off" style={{ marginLeft: 6 }}>short</span> : null}
+                            {term(market.name)}
+                            {market.essential ? <span className="pill" style={{ marginLeft: 6 }}>{t("economy.essential")}</span> : null}
+                            {market.shortage_ticks > 0 ? <span className="pill off" style={{ marginLeft: 6 }}>{t("economy.short")}</span> : null}
                           </td>
                           <td className="num">{market.price_minor}</td>
                           <td className="num muted">{fmt(market.unit_cost * 100, 0)}</td>
@@ -54,15 +56,15 @@ export default function EconomyPage() {
 
               <div>
                 <div className="card" style={{ marginBottom: 12 }}>
-                  <h3>Sectors</h3>
+                  <h3>{t("economy.sectors")}</h3>
                   <table>
                     <thead>
-                      <tr><th>Sector</th><th className="num">Firms</th><th className="num">Jobs</th><th className="num">Output</th><th className="num">Cash</th></tr>
+                      <tr><th>{t("economy.sector")}</th><th className="num">{t("economy.firms")}</th><th className="num">{t("economy.jobs")}</th><th className="num">{t("economy.output")}</th><th className="num">{t("economy.cash")}</th></tr>
                     </thead>
                     <tbody>
                       {(data.sectors as Json[]).map((row) => (
                         <tr key={row.sector}>
-                          <td>{row.sector}</td>
+                          <td>{term(row.sector)}</td>
                           <td className="num">{row.companies}</td>
                           <td className="num">{fmt(row.employment, 0)}</td>
                           <td className="num">{fmt(row.output, 0)}</td>
@@ -73,10 +75,10 @@ export default function EconomyPage() {
                   </table>
                 </div>
                 <div className="card">
-                  <h3>Banks</h3>
+                  <h3>{t("economy.banks")}</h3>
                   <table>
                     <thead>
-                      <tr><th>Bank</th><th className="num">Capital</th><th className="num">Loans</th><th className="num">NPL</th><th className="num">Spread</th></tr>
+                      <tr><th>{t("economy.bank")}</th><th className="num">{t("economy.capital")}</th><th className="num">{t("economy.loans")}</th><th className="num">{t("economy.npl")}</th><th className="num">{t("economy.spread")}</th></tr>
                     </thead>
                     <tbody>
                       {(data.banks as Json[]).map((bank) => (
@@ -91,7 +93,7 @@ export default function EconomyPage() {
                     </tbody>
                   </table>
                   <div className="muted" style={{ marginTop: 8 }}>
-                    outstanding {money(data.loans_outstanding)} · defaults {data.defaults}
+                    {t("economy.outstanding", { value: money(data.loans_outstanding), defaults: data.defaults })}
                   </div>
                 </div>
               </div>

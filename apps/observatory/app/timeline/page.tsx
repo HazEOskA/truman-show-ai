@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Page";
+import { useI18n } from "@/components/I18n";
 import { apiGet, apiPost, Json, useSelection } from "@/lib/api";
 
 export default function TimelinePage() {
+  const { t } = useI18n();
   const { worldId, timelineId, select } = useSelection();
   const [timelines, setTimelines] = useState<Json[]>([]);
   const [snapshots, setSnapshots] = useState<number[]>([]);
@@ -67,13 +69,13 @@ export default function TimelinePage() {
 
   return (
     <>
-      <Header title="Timeline" right={`${timelines.length} timelines`} />
+      <Header title={t("timeline.title")} right={t("timeline.summary", { count: timelines.length })} />
       <div className="grid cols-2" style={{ marginBottom: 12 }}>
         <div className="card">
-          <h3>Timelines</h3>
+          <h3>{t("timeline.timelines")}</h3>
           <table>
             <thead>
-              <tr><th>Timeline</th><th>Parent</th><th className="num">Fork tick</th><th className="num">Head</th><th>Sealed</th><th /></tr>
+              <tr><th>{t("common.timeline")}</th><th>{t("timeline.parent")}</th><th className="num">{t("timeline.forkTick")}</th><th className="num">{t("timeline.head")}</th><th>{t("timeline.sealed")}</th><th /></tr>
             </thead>
             <tbody>
               {timelines.map((timeline) => (
@@ -85,10 +87,10 @@ export default function TimelinePage() {
                   <td className="muted">{timeline.parent_timeline_id ?? "—"}</td>
                   <td className="num muted">{timeline.fork_tick ?? "—"}</td>
                   <td className="num">{timeline.head_tick}</td>
-                  <td>{timeline.sealed ? <span className="pill on">sealed</span> : <span className="pill">open</span>}</td>
+                  <td>{timeline.sealed ? <span className="pill on">{t("timeline.sealedValue")}</span> : <span className="pill">{t("common.open")}</span>}</td>
                   <td>
                     <button onClick={() => select(worldId, timeline.timeline_id)}>
-                      {timeline.timeline_id === timelineId ? "watching" : "watch"}
+                      {timeline.timeline_id === timelineId ? t("timeline.watching") : t("timeline.watch")}
                     </button>
                   </td>
                 </tr>
@@ -98,26 +100,25 @@ export default function TimelinePage() {
         </div>
 
         <div className="card">
-          <h3>Fork this timeline</h3>
+          <h3>{t("timeline.forkTitle")}</h3>
           <p className="muted">
-            Timeline Zero is immutable. Experiments run on branches: a fork copies the world at a tick and
-            carries its own seed lineage from there.
+            {t("timeline.forkCopy")}
           </p>
           <div className="row">
-            <input placeholder="fork tick" value={forkTick} onChange={(e) => setForkTick(e.target.value)} style={{ width: 110 }} />
-            <input placeholder="label" value={label} onChange={(e) => setLabel(e.target.value)} />
-            <input placeholder="divergence salt" value={salt} onChange={(e) => setSalt(e.target.value)} style={{ width: 140 }} />
-            <button className="primary" disabled={busy || !forkTick} onClick={fork}>Fork</button>
+            <input placeholder={t("timeline.forkTickPlaceholder")} aria-label={t("timeline.forkTickPlaceholder")} value={forkTick} onChange={(e) => setForkTick(e.target.value)} style={{ width: 110 }} />
+            <input placeholder={t("timeline.label")} aria-label={t("timeline.label")} value={label} onChange={(e) => setLabel(e.target.value)} />
+            <input placeholder={t("timeline.salt")} aria-label={t("timeline.salt")} value={salt} onChange={(e) => setSalt(e.target.value)} style={{ width: 140 }} />
+            <button className="primary" disabled={busy || !forkTick} onClick={fork}>{t("timeline.fork")}</button>
           </div>
-          <h3 style={{ marginTop: 14 }}>Replay</h3>
+          <h3 style={{ marginTop: 14 }}>{t("timeline.replay")}</h3>
           <div className="row">
-            <input placeholder="tick" value={replayTick} onChange={(e) => setReplayTick(e.target.value)} style={{ width: 110 }} />
-            <button disabled={busy || !replayTick} onClick={replay}>Replay &amp; verify</button>
+            <input placeholder={t("common.tick")} aria-label={t("common.tick")} value={replayTick} onChange={(e) => setReplayTick(e.target.value)} style={{ width: 110 }} />
+            <button disabled={busy || !replayTick} onClick={replay}>{t("timeline.replayVerify")}</button>
           </div>
           <div className="muted" style={{ marginTop: 8 }}>
-            snapshots at: {snapshots.length ? snapshots.join(", ") : "none yet"}
+            {t("timeline.snapshots", { values: snapshots.length ? snapshots.join(", ") : t("timeline.noSnapshots") })}
           </div>
-          {error ? <div className="error" style={{ marginTop: 8 }}>{error}</div> : null}
+          {error ? <div className="error" role="alert" style={{ marginTop: 8 }}>{t("common.error", { message: error })}</div> : null}
           {result ? (
             <pre style={{ marginTop: 10, whiteSpace: "pre-wrap", color: "var(--accent)" }}>
               {JSON.stringify(result, null, 2)}

@@ -1,0 +1,348 @@
+/* Runtime mobile mode for the entire Hydra World Observatory.
+   Unlike the old width-only responsive layer, this is activated by AppShell for
+   real touch/mobile devices as well as narrow viewports. It is loaded last. */
+
+.is-mobile-device {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  display: block !important;
+  min-height: 100dvh;
+  overflow-x: hidden !important;
+}
+
+.is-mobile-device .desktop-observatory-nav,
+.is-mobile-device .sidebar--command,
+.is-mobile-device .sidebar--legacy {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  min-width: 0 !important;
+  flex-basis: 0 !important;
+}
+
+.is-mobile-device .mobile-observatory-topbar { display: flex !important; }
+.is-mobile-device .mobile-bottom-nav { display: grid !important; }
+
+.is-mobile-device .route-main {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding:
+    calc(70px + env(safe-area-inset-top))
+    12px
+    calc(92px + env(safe-area-inset-bottom)) !important;
+  overflow-x: hidden !important;
+}
+
+.is-mobile-device .route-main > * {
+  min-width: 0 !important;
+  max-width: 100%;
+}
+
+/* Shared route frame ---------------------------------------------------- */
+.is-mobile-device .route-topbar,
+.is-mobile-device .topbar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: start !important;
+  gap: 6px !important;
+  margin: 2px 0 14px !important;
+}
+
+.is-mobile-device .route-topbar h2,
+.is-mobile-device .topbar h2 {
+  margin: 0 !important;
+  font-size: clamp(20px, 6vw, 28px) !important;
+  line-height: 1.05 !important;
+  letter-spacing: .045em !important;
+}
+
+.is-mobile-device .route-topbar .clock,
+.is-mobile-device .topbar .clock {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.is-mobile-device .route-content,
+.is-mobile-device .route-state {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.is-mobile-device .card {
+  width: 100%;
+  min-width: 0 !important;
+  max-width: 100%;
+  padding: 14px !important;
+  border-radius: 12px !important;
+}
+
+.is-mobile-device .grid,
+.is-mobile-device .grid.cols-2,
+.is-mobile-device .grid.cols-3,
+.is-mobile-device .grid.cols-4,
+.is-mobile-device .grid.cols-6 {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+}
+
+.is-mobile-device .row {
+  width: 100%;
+  max-width: 100%;
+  gap: 8px !important;
+}
+
+.is-mobile-device button,
+.is-mobile-device .btn,
+.is-mobile-device input,
+.is-mobile-device select,
+.is-mobile-device .action,
+.is-mobile-device .link {
+  min-height: 44px !important;
+}
+
+.is-mobile-device input,
+.is-mobile-device select {
+  max-width: 100%;
+  font-size: 16px !important;
+}
+
+.is-mobile-device .scroll {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+}
+
+.is-mobile-device table {
+  min-width: 680px;
+  font-size: 12px !important;
+}
+
+.is-mobile-device th,
+.is-mobile-device td {
+  padding: 9px 10px !important;
+  white-space: nowrap;
+}
+
+.is-mobile-device canvas,
+.is-mobile-device svg,
+.is-mobile-device img {
+  max-width: 100%;
+}
+
+/* Home: compact live-world composition. Desktop command centre is not the phone home. */
+.is-mobile-device .command-center {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.is-mobile-device .command-center .command-hero,
+.is-mobile-device .command-center .control-deck,
+.is-mobile-device .command-center .dashboard-grid,
+.is-mobile-device .command-center .module-section,
+.is-mobile-device .command-center .command-footer {
+  display: none !important;
+}
+
+.is-mobile-device .command-center .mobile-priority-card {
+  display: grid !important;
+}
+
+.is-mobile-device .command-center .metrics-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  margin-top: 12px !important;
+}
+
+/* City is the primary mobile surface: map first, controls second. */
+.is-mobile-device.shell--city-stage .route-main {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.is-mobile-device .city {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: calc(100dvh - 150px) !important;
+  height: auto !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+}
+
+.is-mobile-device .city-bar {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  gap: 8px !important;
+  width: 100% !important;
+  padding: 10px 12px !important;
+  align-items: center !important;
+}
+
+/* Genesis/world selection is laboratory plumbing, not primary phone UX. */
+.is-mobile-device .city-bar > .card,
+.is-mobile-device .city-bar .world-picker-card,
+.is-mobile-device .city-honesty {
+  display: none !important;
+}
+
+.is-mobile-device .city-clock strong { font-size: 15px !important; }
+.is-mobile-device .city-clock span { font-size: 9px !important; }
+.is-mobile-device .city-counts { font-size: 10px !important; text-align: right; }
+
+.is-mobile-device .city-body {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+.is-mobile-device .city-stage {
+  order: -1 !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 52dvh !important;
+  min-height: 330px !important;
+  max-height: 620px !important;
+  flex: 0 0 auto !important;
+  border-bottom: 1px solid var(--line);
+}
+
+.is-mobile-device .city-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: none;
+}
+
+.is-mobile-device .city-panel,
+.is-mobile-device .city-inspector {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--line) !important;
+  padding: 12px !important;
+  overflow: visible !important;
+  background: #0b0e14 !important;
+}
+
+.is-mobile-device .city-panel {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+}
+
+.is-mobile-device .city-panel section {
+  width: 100%;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+/* Hide simulation-lab controls from normal phone flow. */
+.is-mobile-device .city-panel section:nth-of-type(3),
+.is-mobile-device .city-panel section:nth-of-type(4),
+.is-mobile-device .city-stats {
+  display: none !important;
+}
+
+.is-mobile-device .city-panel h3,
+.is-mobile-device .city-inspector h3 {
+  font-size: 13px !important;
+  margin-bottom: 10px !important;
+}
+
+.is-mobile-device .chips { gap: 7px !important; }
+.is-mobile-device .chip {
+  min-height: 44px !important;
+  padding: 9px 11px !important;
+  font-size: 10px !important;
+  display: inline-flex !important;
+  align-items: center;
+}
+
+.is-mobile-device .city-inspector { padding-bottom: 22px !important; }
+
+/* Spatial map */
+.is-mobile-device .route-map canvas[width="900"] {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 16 / 10;
+}
+
+/* Data-heavy routes get usable filter rows and swipeable data, never a scaled desktop. */
+.is-mobile-device .route-people .row,
+.is-mobile-device .route-companies .row,
+.is-mobile-device .route-events .row,
+.is-mobile-device .route-economy .row,
+.is-mobile-device .route-government .row,
+.is-mobile-device .route-media .row,
+.is-mobile-device .route-technology .row,
+.is-mobile-device .route-culture .row,
+.is-mobile-device .route-causal .row,
+.is-mobile-device .route-timeline .row,
+.is-mobile-device .route-hydra .row {
+  flex-wrap: wrap !important;
+}
+
+.is-mobile-device .route-people input,
+.is-mobile-device .route-companies input,
+.is-mobile-device .route-events input {
+  width: 100% !important;
+  flex: 1 1 100%;
+}
+
+/* Immersive city play owns the whole phone. */
+.is-mobile-device.shell--play .desktop-observatory-nav,
+.is-mobile-device.shell--play .mobile-observatory-topbar,
+.is-mobile-device.shell--play .mobile-bottom-nav {
+  display: none !important;
+}
+
+.is-mobile-device.shell--play .route-main {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.is-mobile-device .play-shell {
+  width: 100% !important;
+  height: 100dvh !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+}
+
+.is-mobile-device .play-stage { min-height: 0 !important; }
+
+@media (max-width: 430px) {
+  .is-mobile-device .route-main {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+  .is-mobile-device.shell--city-stage .route-main {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  .is-mobile-device .mobile-live { display: none !important; }
+}
+
+@media (max-width: 370px) {
+  .is-mobile-device .command-center .metrics-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

@@ -267,19 +267,36 @@
  * top two thirds, the panels scroll underneath it.
  */
 @media (max-width: 900px) {
-  .city { margin: -12px; height: 100dvh; }
-  .city-bar { gap: 12px; padding: 8px 10px; }
+  .city {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: calc(100dvh - 156px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    margin: 0;
+  }
+  .city-bar { gap: 12px; padding: 10px; align-items: flex-start; }
+  .city-bar > * { min-width: 0; max-width: 100%; }
+  .city-bar > .card { flex: 1 1 100%; }
   .city-honesty { order: 3; flex-basis: 100%; max-width: none; }
   .city-body { flex-direction: column; }
-  .city-stage { flex: 0 0 62vh; order: -1; }
+  .city-stage { flex: 0 0 min(58dvh, 560px); min-height: 360px; order: -1; }
   .city-panel,
   .city-inspector {
     width: 100%;
     flex: 0 0 auto;
     border: none;
     border-top: 1px solid var(--line);
-    max-height: 40vh;
+    max-height: none;
+    overflow: visible;
   }
+  .city-panel label,
+  .city-panel button,
+  .city-inspector button,
+  .chip {
+    min-height: 44px;
+  }
+  .chip { display: inline-flex; align-items: center; }
+  .link { min-height: 44px; display: inline-flex; align-items: center; }
   /* The inspector always carries something worth reading now -- the event feed when
      nothing is selected -- so it stays on screen instead of collapsing. */
 }

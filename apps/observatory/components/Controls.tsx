@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useI18n } from "@/components/I18n";
 import { apiPost, Json } from "@/lib/api";
 
 export default function Controls({
@@ -14,6 +15,7 @@ export default function Controls({
   control: Json | null;
   onChanged: () => void;
 }) {
+  const { t, term } = useI18n();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const base = `/worlds/${worldId}/timelines/${timelineId}`;
@@ -48,53 +50,62 @@ export default function Controls({
   const speed = control?.speed ?? 4;
 
   return (
-    <div className="card">
-      <h3>Run control</h3>
-      <div className="row">
+    <div className="card control-card simulation-control-card">
+      <div className="control-card-header">
+        <span className="control-index">02</span>
+        <div>
+          <h3>{t("controls.title")}</h3>
+          <p>{t("controls.copy")}</p>
+        </div>
+        <span className={mode === "running" ? "control-state is-live" : "control-state"}>{term(mode)}</span>
+      </div>
+      <div className="simulation-row">
+        <span className="control-row-label">{t("controls.clock")}</span>
         <button
           className={mode === "running" ? "primary" : ""}
           disabled={busy || !worldId}
           onClick={() => send({ mode: mode === "running" ? "paused" : "running" })}
         >
-          {mode === "running" ? "Pause" : "Run"}
+          {mode === "running" ? t("controls.pause") : t("controls.run")}
         </button>
         <button disabled={busy || !worldId} onClick={() => send({ step_ticks: 6 })}>
-          Step 1h
+          {t("controls.stepHour")}
         </button>
         <button disabled={busy || !worldId} onClick={() => send({ step_ticks: 144 })}>
-          Step 1 day
+          {t("controls.stepDay")}
         </button>
-        <span className="muted">speed</span>
-        <select
-          value={String(speed)}
-          disabled={busy || !worldId}
-          onChange={(event) => send({ speed: Number(event.target.value) })}
-        >
-          <option value="1">1 tick/s</option>
-          <option value="4">4 ticks/s</option>
-          <option value="12">12 ticks/s</option>
-          <option value="48">48 ticks/s</option>
-          <option value="0">as fast as possible</option>
-        </select>
-        <span className="pill">{mode}</span>
+        <label className="speed-field">
+          <span>{t("controls.speed")}</span>
+          <select
+            value={String(speed)}
+            disabled={busy || !worldId}
+            onChange={(event) => send({ speed: Number(event.target.value) })}
+          >
+            <option value="1">{t("controls.tickPerSecond", { count: 1 })}</option>
+            <option value="4">{t("controls.tickPerSecond", { count: 4 })}</option>
+            <option value="12">{t("controls.tickPerSecond", { count: 12 })}</option>
+            <option value="48">{t("controls.tickPerSecond", { count: 48 })}</option>
+            <option value="0">{t("controls.maximum")}</option>
+          </select>
+        </label>
       </div>
-      <div className="row" style={{ marginTop: 10 }}>
-        <span className="muted">scenario</span>
+      <div className="simulation-row simulation-row--scenario">
+        <span className="control-row-label">{t("controls.pressure")}</span>
         <button disabled={busy || !worldId} onClick={() => scenario("plant_failure", { loss: 0.4 })}>
-          Plant −40%
+          {t("controls.plantFailure")}
         </button>
         <button disabled={busy || !worldId} onClick={() => scenario("cold_snap", { drop_c: 12 })}>
-          Cold snap
+          {t("controls.coldSnap")}
         </button>
         <button disabled={busy || !worldId} onClick={() => scenario("supply_shock", { code: "materials", loss: 0.5 })}>
-          Supply shock
+          {t("controls.supplyShock")}
         </button>
         <button disabled={busy || !worldId} onClick={() => scenario("plant_repair", {})}>
-          Repair plant
+          {t("controls.repairPlant")}
         </button>
       </div>
       {control?.note ? <div className="muted" style={{ marginTop: 8 }}>{control.note}</div> : null}
-      {error ? <div className="error" style={{ marginTop: 8 }}>{error}</div> : null}
+      {error ? <div className="error" role="alert" style={{ marginTop: 8 }}>{t("common.error", { message: error })}</div> : null}
     </div>
   );
 }
