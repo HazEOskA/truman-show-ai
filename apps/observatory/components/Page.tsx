@@ -13,7 +13,7 @@ export function useView<T = Json>(path: string, intervalMs = 3000) {
 
 export function Header({ title, right }: { title: string; right?: React.ReactNode }) {
   return (
-    <div className="topbar">
+    <div className="topbar route-topbar">
       <h2>{title}</h2>
       {right ? <div className="clock">{right}</div> : null}
     </div>
@@ -32,8 +32,8 @@ export function Guard({
   children: React.ReactNode;
 }) {
   const { t } = useI18n();
-  if (error) return <div className="error" role="alert">{t("common.error", { message: error })}</div>;
-  if (loading) return <div className="empty" role="status">{t("common.loading")}</div>;
-  if (!data) return <div className="empty">{t("guard.noWorld")}</div>;
-  return <>{children}</>;
+  if (error) return <div className="error route-state" role="alert">{t("common.error", { message: error })}</div>;
+  if (loading) return <div className="empty route-state" role="status">{t("common.loading")}</div>;
+  if (!data) return <div className="empty route-state">{t("guard.noWorld")}</div>;
+  return <div className="route-content">{children}</div>;
 }
