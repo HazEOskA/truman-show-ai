@@ -3,9 +3,11 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Header } from "@/components/Page";
+import { useI18n } from "@/components/I18n";
 import { apiGet, Json, pct, useSelection } from "@/lib/api";
 
 function CausalView() {
+  const { t, term } = useI18n();
   const params = useSearchParams();
   const { worldId, timelineId } = useSelection();
   const [eventId, setEventId] = useState(params.get("event") ?? "");
@@ -29,60 +31,61 @@ function CausalView() {
 
   return (
     <>
-      <Header title="Causal graph" right="why did this happen?" />
+      <Header title={t("causal.title")} right={t("causal.question")} />
       <div className="card" style={{ marginBottom: 12 }}>
         <div className="row">
           <input
             style={{ width: 220 }}
             placeholder="evt_000000123"
+            aria-label={t("causal.eventId")}
             value={eventId}
             onChange={(event) => setEventId(event.target.value)}
           />
-          <button className="primary" onClick={() => load(eventId)}>Trace</button>
+          <button className="primary" onClick={() => load(eventId)}>{t("causal.trace")}</button>
         </div>
-        {error ? <div className="error" style={{ marginTop: 8 }}>{error}</div> : null}
+        {error ? <div className="error" role="alert" style={{ marginTop: 8 }}>{t("common.error", { message: error })}</div> : null}
       </div>
 
       {data?.event ? (
         <div className="grid cols-2">
           <div className="card">
-            <h3>Chain of causes (root first)</h3>
+            <h3>{t("causal.causes")}</h3>
             {(data.chain as Json[]).length ? (
               <ol style={{ paddingLeft: 18 }}>
                 {(data.chain as Json[]).map((node) => (
                   <li key={node.event.event_id} style={{ marginBottom: 6 }}>
                     <span className="muted">{node.event.sim_time}</span>{" "}
-                    <strong>{String(node.event.action).replace(/_/g, " ")}</strong>{" "}
+                    <strong>{term(node.event.action)}</strong>{" "}
                     <span className="muted">
-                      ({node.event.topic}, importance {pct(node.event.importance, 0)})
+                      ({term(node.event.topic)}, {t("causal.importance", { value: pct(node.event.importance, 0) })})
                     </span>
                   </li>
                 ))}
               </ol>
             ) : (
-              <div className="muted">This event has no recorded cause — it is a root event.</div>
+              <div className="muted">{t("causal.root")}</div>
             )}
           </div>
           <div className="card">
-            <h3>Consequences</h3>
+            <h3>{t("causal.consequences")}</h3>
             {(data.consequences as Json[]).length ? (
               <ul style={{ paddingLeft: 18 }}>
                 {(data.consequences as Json[]).map((node) => (
                   <li key={node.event.event_id} style={{ marginBottom: 6 }}>
                     <span className="muted">{node.event.sim_time}</span>{" "}
-                    {String(node.event.action).replace(/_/g, " ")}{" "}
-                    <span className="muted">({node.event.topic})</span>
+                    {term(node.event.action)}{" "}
+                    <span className="muted">({term(node.event.topic)})</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <div className="muted">Nothing has followed from this yet.</div>
+              <div className="muted">{t("causal.noConsequences")}</div>
             )}
           </div>
         </div>
       ) : (
         <div className="card muted">
-          Paste an event id (from the Events view) to see the chain the world actually produced.
+          {t("causal.prompt")}
         </div>
       )}
     </>
@@ -90,8 +93,9 @@ function CausalView() {
 }
 
 export default function CausalPage() {
+  const { t } = useI18n();
   return (
-    <Suspense fallback={<div className="empty">loading…</div>}>
+    <Suspense fallback={<div className="empty">{t("common.loading")}</div>}>
       <CausalView />
     </Suspense>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { Json, usePolling, useSelection } from "@/lib/api";
+import { useI18n } from "@/components/I18n";
 
 /** Every view is the same shape: pick a world, poll one projection, render it. */
 export function useView<T = Json>(path: string, intervalMs = 3000) {
@@ -30,8 +31,9 @@ export function Guard({
   data: unknown;
   children: React.ReactNode;
 }) {
-  if (error) return <div className="error">{error}</div>;
-  if (loading) return <div className="empty">loading…</div>;
-  if (!data) return <div className="empty">No world selected — open the World view first.</div>;
+  const { t } = useI18n();
+  if (error) return <div className="error" role="alert">{t("common.error", { message: error })}</div>;
+  if (loading) return <div className="empty" role="status">{t("common.loading")}</div>;
+  if (!data) return <div className="empty">{t("guard.noWorld")}</div>;
   return <>{children}</>;
 }

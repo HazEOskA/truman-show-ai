@@ -44,6 +44,11 @@
   display: none;
 }
 
+/* These cards repeat live Observatory data only to establish a useful phone hierarchy. */
+.mobile-priority-card {
+  display: none;
+}
+
 /* Preview foundation ------------------------------------------------------ */
 .observatory-preview {
   width: min(1180px, 100%);
@@ -311,6 +316,25 @@
     overflow-x: hidden;
   }
 
+  .shell--play {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 100dvh;
+  }
+
+  .shell--play .main {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: 100dvh;
+    padding:
+      calc(58px + env(safe-area-inset-top))
+      0
+      calc(76px + env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+
   .mobile-observatory-topbar {
     position: fixed;
     z-index: 80;
@@ -339,14 +363,12 @@
   .mobile-brand:hover { text-decoration: none; }
   .mobile-brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid rgba(85,239,255,0.22); border-radius: 9px; background: rgba(85,239,255,0.055); }
   .mobile-brand-mark .hydra-mark { width: 23px; height: 23px; }
-  .mobile-brand > span:last-child { min-width: 0; display: flex; flex-direction: column; }
-  .mobile-brand strong { font: 800 12px/1 var(--display); letter-spacing: 0.13em; }
-  .mobile-brand small { margin-top: 3px; color: #626d82; font: 700 6.5px/1 var(--mono); letter-spacing: 0.1em; white-space: nowrap; }
+  .mobile-brand strong { font: 800 12px/1 var(--display); letter-spacing: 0.13em; white-space: nowrap; }
 
   .mobile-topbar-actions { display: flex; align-items: center; gap: 6px; }
   .mobile-live { display: inline-flex; align-items: center; gap: 5px; color: var(--hydra-green); font: 800 7px/1 var(--mono); letter-spacing: 0.08em; }
-  .mobile-topbar-actions .language-switch { min-height: 32px; padding: 2px 4px; }
-  .mobile-topbar-actions .language-switch button { min-width: 25px; min-height: 27px; font-size: 8px; }
+  .mobile-topbar-actions .language-switch { min-height: 44px; padding: 0 2px; gap: 0; }
+  .mobile-topbar-actions .language-switch button { min-width: 44px; min-height: 44px; padding: 0; font-size: 9px; }
 
   .mobile-bottom-nav {
     position: fixed;
@@ -404,7 +426,10 @@
   }
   .mobile-more-sheet {
     width: 100%;
+    max-height: min(82dvh, 720px);
     padding: 8px 14px calc(86px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overscroll-behavior: contain;
     border-radius: 22px 22px 0 0;
     border-top: 1px solid rgba(85,239,255,0.17);
     background: linear-gradient(180deg, #111622, #070a11 78%);
@@ -427,7 +452,94 @@
   }
 
   .shell--observatory .card { min-width: 0; }
+  .shell--observatory .card,
+  .shell--observatory .scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
   .shell--observatory .topbar { align-items: flex-start; }
+  .shell--observatory .topbar > * { min-width: 0; max-width: 100%; }
+  .shell--observatory .row { width: 100%; }
+  .shell--observatory button,
+  .shell--observatory .btn,
+  .shell--observatory input,
+  .shell--observatory select {
+    min-height: 44px;
+  }
+
+  /* Phone command flow: status, city, controls, events, KPIs, systems, runtime. */
+  .command-center {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .command-hero { order: 1; min-height: 570px; }
+  .mobile-live-city { order: 2; }
+  .control-deck { order: 3; }
+  .mobile-event-summary { order: 4; }
+  .metrics-grid,
+  .dashboard-state { order: 5; }
+  .module-section { order: 6; }
+  .dashboard-grid { order: 7; }
+  .command-footer { order: 8; }
+
+  .mobile-priority-card {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    margin-top: 14px;
+    padding: 17px;
+    border: 1px solid var(--hydra-line);
+    background: linear-gradient(145deg, rgba(15,19,30,0.9), rgba(8,10,17,0.94));
+  }
+  .mobile-priority-card > div:first-child > span {
+    color: var(--hydra-cyan);
+    font: 700 8px/1 var(--mono);
+    letter-spacing: 0.16em;
+  }
+  .mobile-priority-card h2 {
+    margin: 7px 0 0;
+    color: var(--hydra-white);
+    font: 800 22px/1.05 var(--display);
+    text-transform: uppercase;
+  }
+  .mobile-priority-card p { margin: 7px 0 0; color: #7d899f; }
+  .mobile-city-facts {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    border-left: 2px solid var(--hydra-green);
+    background: rgba(73,245,166,0.035);
+  }
+  .mobile-city-facts strong { color: var(--hydra-white); font: 800 17px/1 var(--display); }
+  .mobile-city-facts small { margin-top: 6px; color: #829087; }
+  .mobile-event-list { display: grid; }
+  .mobile-event-list a {
+    min-height: 54px;
+    display: grid;
+    grid-template-columns: minmax(70px, auto) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--hydra-line);
+    color: #aab5c7;
+  }
+  .mobile-event-list a:hover { text-decoration: none; color: var(--hydra-cyan); }
+  .mobile-event-list span { color: #637087; font: 600 8px/1 var(--mono); }
+  .mobile-event-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-event-list b { color: var(--hydra-cyan); }
+
+  .control-deck,
+  .module-section { margin-top: 26px; }
+  .control-card-header { grid-template-columns: 28px minmax(0, 1fr) auto; }
+  .simulation-row { align-items: stretch; }
+  .simulation-row button { flex: 1 1 84px; }
+  .metrics-grid { margin-top: 22px; }
+  .dashboard-panel--ledger { display: none; }
+  .module-link,
+  .action { min-height: 44px; }
 
   .observatory-preview { width: 100%; }
   .preview-hero { align-items: flex-start; margin: 4px 2px 17px; }
@@ -454,7 +566,6 @@
 }
 
 @media (max-width: 370px) {
-  .mobile-brand small { display: none; }
   .mobile-live { display: none; }
   .preview-kpi strong { font-size: 17px; }
   .mobile-bottom-nav { left: 5px; right: 5px; }

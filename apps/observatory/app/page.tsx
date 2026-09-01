@@ -4,19 +4,20 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Controls from "@/components/Controls";
+import { useI18n } from "@/components/I18n";
 import WorldPicker from "@/components/WorldPicker";
 import { Spark } from "@/components/Widgets";
 import { apiGet, fmt, Json, pct, usePolling, useSelection } from "@/lib/api";
 
 type Accent = "cyan" | "violet" | "magenta" | "amber" | "green" | "blue";
 
-const MODULES: { href: string; code: string; title: string; copy: string; accent: Accent }[] = [
-  { href: "/city", code: "CITY/02", title: "Read the city", copy: "664 buildings, 928 streets and every live layer.", accent: "cyan" },
-  { href: "/people", code: "LIFE/05", title: "Follow a life", copy: "Goals, memory, employment and individual consequences.", accent: "violet" },
-  { href: "/economy", code: "ECON/07", title: "Watch the markets", copy: "Prices, shortages, labour and energy pressure.", accent: "amber" },
-  { href: "/causal", code: "WHY/13", title: "Explain a consequence", copy: "Trace immutable events back through the causal graph.", accent: "magenta" },
-  { href: "/events", code: "LOG/12", title: "Open the ledger", copy: "Every material decision, shock and state transition.", accent: "green" },
-  { href: "/hydra", code: "CORE/01", title: "Inspect Hydra", copy: "Persistent agents, sleeping minds and compute cost.", accent: "blue" }
+const MODULES: { href: string; code: string; titleKey: string; copyKey: string; accent: Accent }[] = [
+  { href: "/city", code: "CITY/02", titleKey: "world.module.city.title", copyKey: "world.module.city.copy", accent: "cyan" },
+  { href: "/people", code: "LIFE/05", titleKey: "world.module.people.title", copyKey: "world.module.people.copy", accent: "violet" },
+  { href: "/economy", code: "ECON/07", titleKey: "world.module.economy.title", copyKey: "world.module.economy.copy", accent: "amber" },
+  { href: "/causal", code: "WHY/13", titleKey: "world.module.causal.title", copyKey: "world.module.causal.copy", accent: "magenta" },
+  { href: "/events", code: "LOG/12", titleKey: "world.module.events.title", copyKey: "world.module.events.copy", accent: "green" },
+  { href: "/hydra", code: "CORE/01", titleKey: "world.module.hydra.title", copyKey: "world.module.hydra.copy", accent: "blue" }
 ];
 
 function MetricCard({
@@ -58,57 +59,61 @@ function PanelHeader({ eyebrow, title, meta }: { eyebrow: string; title: string;
 }
 
 function WorldCore({ state, running }: { state: Json | null; running: boolean }) {
+  const { t } = useI18n();
   const demand = Number(state?.city?.power_demand_mw ?? 0);
   const capacity = Number(state?.city?.power_capacity_mw ?? 0);
   const reserve = Math.max(0, capacity - demand);
 
   return (
-    <div className="world-core" aria-label="Hydra world core status">
+    <div className="world-core" aria-label={t("a11y.worldCore")}>
       <div className="core-grid" aria-hidden="true" />
       <div className="core-orbit core-orbit--outer" aria-hidden="true"><i /><i /><i /></div>
       <div className="core-orbit core-orbit--inner" aria-hidden="true"><i /><i /></div>
       <div className={running ? "core-node is-live" : "core-node"}>
-        <span>WORLD CORE</span>
+        <span>{t("world.core.label")}</span>
         <strong>{state ? fmt(reserve, 1) : "—"}</strong>
-        <small>MW RESERVE</small>
+        <small>{t("world.core.reserve")}</small>
       </div>
       <div className="core-coordinate core-coordinate--top">Y0 / TL-ZERO</div>
-      <div className="core-coordinate core-coordinate--bottom">DETERMINISTIC STATE</div>
+      <div className="core-coordinate core-coordinate--bottom">{t("world.core.deterministic")}</div>
     </div>
   );
 }
 
 function ModuleLink({ module }: { module: (typeof MODULES)[number] }) {
+  const { t } = useI18n();
   return (
     <Link href={module.href} className="module-link" data-accent={module.accent}>
       <span className="module-code">{module.code}</span>
-      <strong>{module.title}</strong>
-      <p>{module.copy}</p>
-      <span className="module-open">OPEN MODULE <b aria-hidden="true">↗</b></span>
+      <strong>{t(module.titleKey)}</strong>
+      <p>{t(module.copyKey)}</p>
+      <span className="module-open">{t("world.module.open")} <b aria-hidden="true">↗</b></span>
     </Link>
   );
 }
 
 function SyncState({ worldId, error }: { worldId: string; error: string | null }) {
+  const { t } = useI18n();
   if (error) {
     return (
       <div className="dashboard-state dashboard-state--error">
-        <span>WORLD LINK INTERRUPTED</span>
+        <span>{t("world.sync.interrupted")}</span>
         <strong>{error}</strong>
-        <small>The control surface will reconnect automatically.</small>
+        <small>{t("world.sync.reconnect")}</small>
       </div>
     );
   }
   return (
     <div className="dashboard-state">
       <span className="sync-loader" aria-hidden="true" />
-      <strong>{worldId ? "SYNCHRONIZING WORLD STATE" : "NO WORLD SELECTED"}</strong>
-      <small>{worldId ? "Reading the sealed state from Hydra…" : "Choose an existing world or create one in the control deck."}</small>
+      <strong>{worldId ? t("world.sync.state") : t("world.sync.noSelection")}</strong>
+      <small>{worldId ? t("world.sync.reading") : t("world.sync.choose")}</small>
     </div>
   );
 }
 
 export default function WorldPage() {
+  const { t, term } = useI18n();
   const { worldId, timelineId, select } = useSelection();
   const base = worldId ? `/worlds/${worldId}/timelines/${timelineId}` : null;
   const { data: state, error: stateError } = usePolling<Json>(base ? `${base}/state` : null, 1500);
@@ -148,41 +153,53 @@ export default function WorldPage() {
         <div className="hero-copy">
           <div className="command-kicker">
             <span className={running ? "live-beacon is-live" : "live-beacon"} />
-            OSA TECH // LIVE CIVILIZATION ENGINE
+            {t("world.hero.kicker")}
           </div>
           <h1>
-            THE CITY<br />
-            <span>IS ALIVE.</span>
+            {t("world.hero.line1")}<br />
+            <span>{t("world.hero.line2")}</span>
           </h1>
           <p>
-            Hydra is a deterministic society where people remember, institutions react and every
-            consequence leaves proof. This is its command surface.
+            {t("world.hero.copy")}
           </p>
           <div className="hero-actions">
-            <Link href="/city" className="action action--primary">ENTER CITY VIEW <span>↗</span></Link>
-            <Link href="/causal" className="action">TRACE A CONSEQUENCE <span>→</span></Link>
+            <Link href="/city" className="action action--primary">{t("world.hero.enterCity")} <span>↗</span></Link>
+            <Link href="/causal" className="action">{t("world.hero.trace")} <span>→</span></Link>
           </div>
           <div className="hero-proof">
-            <span><b>01</b> NO MOCK DATA</span>
-            <span><b>02</b> SEALED TIMELINES</span>
-            <span><b>03</b> CAUSAL PROOF</span>
+            <span><b>01</b> {t("world.hero.noMocks")}</span>
+            <span><b>02</b> {t("world.hero.sealed")}</span>
+            <span><b>03</b> {t("world.hero.proof")}</span>
           </div>
         </div>
 
         <WorldCore state={state} running={running} />
 
         <div className="hero-telemetry">
-          <div><span>WORLD</span><strong>{state?.city?.name ?? "HYDRA"}</strong></div>
-          <div><span>SIM TIME</span><strong>{state?.sim_time ?? "SYNCING"}</strong></div>
-          <div><span>MODE</span><strong className={running ? "good" : "warn"}>{running ? "RUNNING" : "PAUSED"}</strong></div>
-          <div><span>STATE</span><strong>{state?.phase ?? "—"}</strong></div>
+          <div><span>{t("world.telemetry.world")}</span><strong>{state?.city?.name ?? "HYDRA"}</strong></div>
+          <div><span>{t("world.telemetry.simTime")}</span><strong>{state?.sim_time ?? t("world.telemetry.syncing")}</strong></div>
+          <div><span>{t("world.telemetry.mode")}</span><strong className={running ? "good" : "warn"}>{term(running ? "running" : "paused")}</strong></div>
+          <div><span>{t("world.telemetry.state")}</span><strong>{term(state?.phase ?? "—")}</strong></div>
         </div>
       </section>
 
-      <section className="control-deck" aria-label="World control deck">
+      <section className="mobile-priority-card mobile-live-city" aria-label={t("world.mobileCity.title")}>
+        <div>
+          <span>{t("world.mobileCity.eyebrow")}</span>
+          <h2>{t("world.mobileCity.title")}</h2>
+          <p>{t("world.mobileCity.copy")}</p>
+        </div>
+        <div className="mobile-city-facts">
+          <strong>{state?.city?.name ?? "HYDRA"}</strong>
+          <small>{state ? `${fmt(state.population, 0)} · ${state.sim_time}` : t("world.telemetry.syncing")}</small>
+        </div>
+        <Link href="/city" className="action action--primary">{t("world.mobileCity.open")} <span>↗</span></Link>
+      </section>
+
+      <section className="control-deck" aria-label={t("a11y.controlDeck")}>
         <div className="section-intro">
-          <span>CONTROL DECK / 01</span>
-          <h2>Select the world. Control time. Inject pressure.</h2>
+          <span>{t("world.control.eyebrow")}</span>
+          <h2>{t("world.control.title")}</h2>
         </div>
         <div className="control-grid">
           <WorldPicker worldId={worldId} timelineId={timelineId} onSelect={select} variant="command" />
@@ -190,70 +207,85 @@ export default function WorldPage() {
         </div>
       </section>
 
+      <section className="mobile-priority-card mobile-event-summary" aria-label={t("world.mobileEvents.title")}>
+        <PanelHeader eyebrow={t("world.mobileEvents.eyebrow")} title={t("world.mobileEvents.title")} />
+        {events.length ? (
+          <div className="mobile-event-list">
+            {events.slice(0, 3).map((event) => (
+              <Link href={`/causal?event=${event.event_id}`} key={event.event_id}>
+                <span>{event.sim_time}</span>
+                <strong>{term(event.action)}</strong>
+                <b aria-hidden="true">↗</b>
+              </Link>
+            ))}
+          </div>
+        ) : <p>{t("world.mobileEvents.empty")}</p>}
+      </section>
+
       {!state ? (
         <SyncState worldId={worldId} error={stateError} />
       ) : (
         <>
-          <section className="metrics-grid" aria-label="World metrics">
-            <MetricCard index="01" label="Population" value={fmt(state.population, 0)} hint={`${fmt(state.individuals, 0)} individually simulated`} accent="cyan" />
-            <MetricCard index="02" label="Persistent minds" value={fmt(state.persistent_agents, 0)} hint="Agents with memory and goals" accent="violet" />
-            <MetricCard index="03" label="Companies" value={fmt(state.companies, 0)} hint="Competing economic actors" accent="blue" />
-            <MetricCard index="04" label="Unemployment" value={pct(state.economy?.unemployment)} hint={`CPI ${fmt(state.economy?.cpi, 3)}`} accent="amber" />
-            <MetricCard index="05" label="Approval" value={pct(state.government?.approval)} hint={`Unrest ${pct(state.government?.unrest)}`} accent="magenta" />
-            <MetricCard index="06" label="Districts" value={fmt(state.city?.districts, 0)} hint={`${fmt(state.city?.power_output_mw, 1)} MW generated`} accent="green" />
+          <section className="metrics-grid" aria-label={t("a11y.worldMetrics")}>
+            <MetricCard index="01" label={t("world.metrics.population")} value={fmt(state.population, 0)} hint={t("world.metrics.populationHint", { count: fmt(state.individuals, 0) })} accent="cyan" />
+            <MetricCard index="02" label={t("world.metrics.minds")} value={fmt(state.persistent_agents, 0)} hint={t("world.metrics.mindsHint")} accent="violet" />
+            <MetricCard index="03" label={t("world.metrics.companies")} value={fmt(state.companies, 0)} hint={t("world.metrics.companiesHint")} accent="blue" />
+            <MetricCard index="04" label={t("world.metrics.unemployment")} value={pct(state.economy?.unemployment)} hint={t("world.metrics.cpiHint", { value: fmt(state.economy?.cpi, 3) })} accent="amber" />
+            <MetricCard index="05" label={t("world.metrics.approval")} value={pct(state.government?.approval)} hint={t("world.metrics.unrestHint", { value: pct(state.government?.unrest) })} accent="magenta" />
+            <MetricCard index="06" label={t("world.metrics.districts")} value={fmt(state.city?.districts, 0)} hint={t("world.metrics.powerHint", { value: fmt(state.city?.power_output_mw, 1) })} accent="green" />
           </section>
 
           <section className="dashboard-grid">
             <article className="dashboard-panel dashboard-panel--wide">
-              <PanelHeader eyebrow="WORLD PULSE / LIVE" title="Civilization telemetry" meta={`${state.sim_time} · TICK ${state.tick}`} />
+              <PanelHeader eyebrow={t("world.pulse.eyebrow")} title={t("world.pulse.title")} meta={`${state.sim_time} · TICK ${state.tick}`} />
               <div className="signal-grid">
                 <div className="signal-chart" data-accent="cyan">
-                  <div><span>POWER OUTPUT</span><strong>{fmt(state.city?.power_output_mw, 1)} MW</strong></div>
+                  <div><span>{t("world.pulse.power")}</span><strong>{fmt(state.city?.power_output_mw, 1)} MW</strong></div>
                   <Spark points={series("power_output_mw")} colour="var(--hydra-cyan)" />
                 </div>
                 <div className="signal-chart" data-accent="amber">
-                  <div><span>CONSUMER PRICE INDEX</span><strong>{fmt(state.economy?.cpi, 3)}</strong></div>
+                  <div><span>{t("world.pulse.cpi")}</span><strong>{fmt(state.economy?.cpi, 3)}</strong></div>
                   <Spark points={series("cpi")} colour="var(--hydra-amber)" />
                 </div>
                 <div className="signal-chart" data-accent="magenta">
-                  <div><span>GOVERNMENT TRUST</span><strong>{pct(state.government?.approval)}</strong></div>
+                  <div><span>{t("world.pulse.trust")}</span><strong>{pct(state.government?.approval)}</strong></div>
                   <Spark points={series("gov_approval")} colour="var(--hydra-magenta)" />
                 </div>
               </div>
               <div className="power-readout">
                 <div className="power-copy">
-                  <span>GRID LOAD</span>
+                  <span>{t("world.pulse.gridLoad")}</span>
                   <strong>{powerShare.toFixed(1)}%</strong>
-                  <small>{fmt(powerDemand, 1)} MW demand of {fmt(powerCapacity, 1)} MW capacity</small>
+                  <small>{t("world.pulse.demand", { demand: fmt(powerDemand, 1), capacity: fmt(powerCapacity, 1) })}</small>
                 </div>
                 <div className="power-rail"><i style={{ width: `${powerShare}%` }} /></div>
               </div>
             </article>
 
             <article className="dashboard-panel">
-              <PanelHeader eyebrow="PROOF / STATE" title="System integrity" meta="VERIFIED AT SOURCE" />
+              <PanelHeader eyebrow={t("world.integrity.eyebrow")} title={t("world.integrity.title")} meta={t("world.integrity.source")} />
               <div className="integrity-score">
-                <span className="integrity-ring"><b>100</b><small>STATE</small></span>
+                <span className="integrity-ring"><b>100</b><small>{t("common.state")}</small></span>
                 <div>
-                  <strong>Deterministic core</strong>
-                  <p>Same seed. Same rules. Same world.</p>
+                  <strong>{t("world.integrity.deterministic")}</strong>
+                  <p>{t("world.integrity.copy")}</p>
                 </div>
               </div>
               <dl className="proof-list">
-                <div><dt>KERNEL</dt><dd>{state.kernel_version}</dd></div>
-                <div><dt>CONFIG HASH</dt><dd>{String(state.config_hash).slice(0, 16)}</dd></div>
-                <div><dt>STATE HASH</dt><dd>{String(state.state_hash).slice(0, 16)}</dd></div>
-                <div><dt>TIMELINE</dt><dd>{state.timeline_id}</dd></div>
+                <div><dt>{t("world.integrity.kernel")}</dt><dd>{state.kernel_version}</dd></div>
+                <div><dt>{t("world.integrity.config")}</dt><dd>{String(state.config_hash).slice(0, 16)}</dd></div>
+                <div><dt>{t("world.integrity.state")}</dt><dd>{String(state.state_hash).slice(0, 16)}</dd></div>
+                <div><dt>{t("world.integrity.timeline")}</dt><dd>{state.timeline_id}</dd></div>
               </dl>
             </article>
 
             <article className="dashboard-panel">
-              <PanelHeader eyebrow="LIFE / NOW" title="Agent activity" meta={`${pct(observedShare)} FULL FIDELITY`} />
+              <PanelHeader eyebrow={t("world.activity.eyebrow")} title={t("world.activity.title")} meta={t("world.activity.fidelity", { value: pct(observedShare) })} />
               {activity.length ? (
                 <div className="activity-list">
                   {activity.map(([label, value], index) => (
                     <div key={label}>
-                      <span><i>{String(index + 1).padStart(2, "0")}</i>{label.replace(/_/g, " ")}</span>
+                      <span><i>{String(index + 1).padStart(2, "0")}</i>{term(label)}</span>
                       <strong>{fmt(Number(value), 0)}</strong>
                     </div>
                   ))}
@@ -261,29 +293,29 @@ export default function WorldPage() {
               ) : (
                 <div className="quiet-state">
                   <span className="quiet-wave" aria-hidden="true" />
-                  <strong>THE WORLD IS WAITING</strong>
-                  <small>Run the clock to watch routines, work and decisions emerge.</small>
+                  <strong>{t("world.activity.waiting")}</strong>
+                  <small>{t("world.activity.copy")}</small>
                 </div>
               )}
             </article>
 
             <article className="dashboard-panel dashboard-panel--ledger">
-              <PanelHeader eyebrow="EVENTS / IMMUTABLE" title="Consequence ledger" meta={`${events.length} RECENT SIGNALS`} />
+              <PanelHeader eyebrow={t("world.ledger.eyebrow")} title={t("world.ledger.title")} meta={t("world.ledger.recent", { count: events.length })} />
               {events.length ? (
                 <div className="ledger-list">
                   {events.map((event) => (
                     <Link href={`/causal?event=${event.event_id}`} key={event.event_id}>
                       <span>{event.sim_time}</span>
-                      <strong>{String(event.action).replace(/_/g, " ")}</strong>
-                      <small>{event.topic} · {pct(event.importance, 0)}</small>
+                      <strong>{term(event.action)}</strong>
+                      <small>{term(event.topic)} · {pct(event.importance, 0)}</small>
                       <b aria-hidden="true">↗</b>
                     </Link>
                   ))}
                 </div>
               ) : (
                 <div className="quiet-state quiet-state--ledger">
-                  <strong>LEDGER ARMED</strong>
-                  <small>The first material consequence will appear when the timeline advances.</small>
+                  <strong>{t("world.ledger.armed")}</strong>
+                  <small>{t("world.ledger.copy")}</small>
                 </div>
               )}
             </article>
@@ -293,9 +325,9 @@ export default function WorldPage() {
 
       <section className="module-section">
         <div className="section-intro section-intro--modules">
-          <span>OBSERVATORY GATES / 02</span>
-          <h2>One world. Multiple instruments.</h2>
-          <p>Every view reads the same state. Change the lens, never the truth.</p>
+          <span>{t("world.modules.eyebrow")}</span>
+          <h2>{t("world.modules.title")}</h2>
+          <p>{t("world.modules.copy")}</p>
         </div>
         <div className="module-grid">
           {MODULES.map((module) => <ModuleLink module={module} key={module.href} />)}
@@ -304,7 +336,7 @@ export default function WorldPage() {
 
       <footer className="command-footer">
         <span>OSA TECH GPT × HYDRA WORLD</span>
-        <strong>BUILT FOR WORLDS THAT REMEMBER.</strong>
+        <strong>{t("world.footer")}</strong>
         <span>OBSERVATORY / V0.1</span>
       </footer>
     </div>

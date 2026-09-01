@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { LanguageSwitch, useI18n } from "@/components/I18n";
 
@@ -17,7 +17,6 @@ const NAV_GROUPS: { labelKey: string; items: NavItem[] }[] = [
     labelKey: "nav.command",
     items: [
       { href: "/", labelKey: "nav.commandCenter", code: "00" },
-      { href: "/preview", labelKey: "nav.preview", code: "P0" },
       { href: "/hydra", labelKey: "nav.hydraCore", code: "01" }
     ]
   },
@@ -81,10 +80,11 @@ function LegacyPlayNav({ pathname }: { pathname: string }) {
   ];
 
   return (
-    <nav className="sidebar sidebar--legacy desktop-observatory-nav" aria-label="Hydra navigation">
+    <nav className="sidebar sidebar--legacy desktop-observatory-nav" aria-label={t("a11y.navigation")}>
       <div className="brand brand--legacy">
-        <h1>Hydra</h1>
-        <small>World Observatory</small>
+        <h1>{t("brand.name")}</h1>
+        <small>{t("brand.subtitle")}</small>
+        <div className="desktop-language-row"><LanguageSwitch compact /></div>
       </div>
       <div className="nav nav--legacy">
         {links.map(([href, labelKey]) => (
@@ -101,12 +101,12 @@ function DesktopNav({ pathname }: { pathname: string }) {
   const { t } = useI18n();
 
   return (
-    <nav className="sidebar sidebar--command desktop-observatory-nav" aria-label="Hydra navigation">
+    <nav className="sidebar sidebar--command desktop-observatory-nav" aria-label={t("a11y.navigation")}>
       <div className="brand brand--command">
-        <Link href="/" className="brand-lockup" aria-label="Hydra World Observatory">
+        <Link href="/" className="brand-lockup" aria-label={t("brand.name")}>
           <span className="brand-symbol"><HydraMark /></span>
           <span className="brand-copy">
-            <strong>HYDRA WORLD</strong>
+            <strong>{t("brand.name")}</strong>
             <small>{t("brand.subtitle")}</small>
           </span>
         </Link>
@@ -146,6 +146,15 @@ function MobileNavigation({ pathname }: { pathname: string }) {
   const { t } = useI18n();
   const [moreOpen, setMoreOpen] = useState(false);
 
+  useEffect(() => {
+    if (!moreOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMoreOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [moreOpen]);
+
   const bottomItems = [
     { href: "/", label: t("mobile.world"), icon: "◈" },
     { href: "/people", label: t("mobile.people"), icon: "◎" },
@@ -156,12 +165,9 @@ function MobileNavigation({ pathname }: { pathname: string }) {
   return (
     <>
       <header className="mobile-observatory-topbar">
-        <Link href="/" className="mobile-brand" aria-label="Hydra World Observatory">
+        <Link href="/" className="mobile-brand" aria-label={t("brand.name")}>
           <span className="mobile-brand-mark"><HydraMark /></span>
-          <span>
-            <strong>HYDRA</strong>
-            <small>WORLD OBSERVATORY</small>
-          </span>
+          <strong>{t("brand.short")}</strong>
         </Link>
         <div className="mobile-topbar-actions">
           <span className="mobile-live"><i />{t("nav.live")}</span>
@@ -169,14 +175,14 @@ function MobileNavigation({ pathname }: { pathname: string }) {
         </div>
       </header>
 
-      <nav className="mobile-bottom-nav" aria-label="Mobile Hydra navigation">
+      <nav className="mobile-bottom-nav" aria-label={t("a11y.mobileNavigation")}>
         {bottomItems.map((item) => (
           <Link key={item.href} href={item.href} className={isActive(pathname, item.href) ? "active" : ""}>
             <span className="mobile-nav-icon" aria-hidden="true">{item.icon}</span>
             <span>{item.label}</span>
           </Link>
         ))}
-        <button type="button" className={moreOpen ? "active" : ""} onClick={() => setMoreOpen((value) => !value)} aria-expanded={moreOpen}>
+        <button type="button" className={moreOpen ? "active" : ""} onClick={() => setMoreOpen((value) => !value)} aria-expanded={moreOpen} aria-controls="mobile-more-sheet">
           <span className="mobile-nav-icon" aria-hidden="true">•••</span>
           <span>{t("mobile.more")}</span>
         </button>
@@ -184,7 +190,7 @@ function MobileNavigation({ pathname }: { pathname: string }) {
 
       {moreOpen ? (
         <div className="mobile-more-backdrop" onClick={() => setMoreOpen(false)}>
-          <section className="mobile-more-sheet" onClick={(event) => event.stopPropagation()} aria-label={t("nav.more")}>
+          <section id="mobile-more-sheet" className="mobile-more-sheet" onClick={(event) => event.stopPropagation()} aria-label={t("nav.more")} role="dialog" aria-modal="true">
             <div className="mobile-sheet-handle" />
             <div className="mobile-sheet-title">{t("nav.more")}</div>
             <div className="mobile-sheet-grid">
@@ -196,7 +202,10 @@ function MobileNavigation({ pathname }: { pathname: string }) {
                 ["/timeline", "nav.timeline", "↦"],
                 ["/economy", "nav.economy", "⌁"],
                 ["/companies", "nav.companies", "▤"],
-                ["/preview", "nav.preview", "▣"]
+                ["/government", "nav.government", "⌂"],
+                ["/media", "nav.media", "◫"],
+                ["/technology", "nav.technology", "⌘"],
+                ["/culture", "nav.culture", "✦"]
               ].map(([href, labelKey, icon]) => (
                 <Link key={href} href={href} onClick={() => setMoreOpen(false)}>
                   <span aria-hidden="true">{icon}</span>

@@ -3,20 +3,22 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Guard, Header, useView } from "@/components/Page";
+import { useI18n } from "@/components/I18n";
 import { fmt, Json, pct } from "@/lib/api";
 
 const TOPICS = [
-  ["", "All"],
-  ["company.*", "Companies"],
-  ["market.*", "Markets"],
-  ["env.*", "Environment"],
-  ["gov.*", "Government"],
-  ["person.*", "People"],
-  ["media.publish", "Media"],
-  ["tech.*", "Technology"]
+  ["", "events.all"],
+  ["company.*", "events.companies"],
+  ["market.*", "events.markets"],
+  ["env.*", "events.environment"],
+  ["gov.*", "events.government"],
+  ["person.*", "events.people"],
+  ["media.publish", "events.media"],
+  ["tech.*", "events.technology"]
 ];
 
 export default function EventsPage() {
+  const { t, term } = useI18n();
   const [topic, setTopic] = useState("");
   const [minImportance, setMinImportance] = useState(0.2);
   const { data, error, loading } = useView<Json>(
@@ -26,15 +28,15 @@ export default function EventsPage() {
 
   return (
     <>
-      <Header title="Events" right="immutable ledger" />
+      <Header title={t("events.title")} right={t("events.immutable")} />
       <div className="card" style={{ marginBottom: 12 }}>
         <div className="row">
-          {TOPICS.map(([value, label]) => (
+          {TOPICS.map(([value, labelKey]) => (
             <button key={value} className={topic === value ? "primary" : ""} onClick={() => setTopic(value)}>
-              {label}
+              {t(labelKey)}
             </button>
           ))}
-          <span className="muted">min importance</span>
+          <span className="muted">{t("events.minImportance")}</span>
           <input
             type="range"
             min="0"
@@ -51,16 +53,16 @@ export default function EventsPage() {
           <div className="scroll" style={{ maxHeight: 640 }}>
             <table>
               <thead>
-                <tr><th className="num">Tick</th><th>Time</th><th>Topic</th><th>Action</th><th>Actor</th>
-                  <th>Target</th><th className="num">Importance</th><th>Why</th></tr>
+                <tr><th className="num">{t("common.tick")}</th><th>{t("common.time")}</th><th>{t("common.topic")}</th><th>{t("common.action")}</th><th>{t("events.actor")}</th>
+                  <th>{t("common.target")}</th><th className="num">{t("events.importance")}</th><th>{t("events.why")}</th></tr>
               </thead>
               <tbody>
                 {((data?.events ?? []) as Json[]).map((event) => (
                   <tr key={event.event_id}>
                     <td className="num muted">{event.tick}</td>
                     <td className="muted">{event.sim_time}</td>
-                    <td className="muted">{event.topic}</td>
-                    <td>{String(event.action).replace(/_/g, " ")}</td>
+                    <td className="muted">{term(event.topic)}</td>
+                    <td>{term(event.action)}</td>
                     <td className="muted">
                       {String(event.actor ?? "").startsWith("person_") ? (
                         <Link href={`/people/${event.actor}`}>{event.actor}</Link>
@@ -71,7 +73,7 @@ export default function EventsPage() {
                     <td className="muted">{event.target ?? "—"}</td>
                     <td className="num">{pct(event.importance, 0)}</td>
                     <td>
-                      <Link href={`/causal?event=${event.event_id}`}>chain</Link>
+                      <Link href={`/causal?event=${event.event_id}`}>{t("events.chain")}</Link>
                     </td>
                   </tr>
                 ))}
@@ -80,7 +82,7 @@ export default function EventsPage() {
           </div>
           {!((data?.events ?? []) as Json[]).length ? (
             <div className="muted">
-              No events yet at this importance. Ledgered events start once the world runs.
+              {t("events.empty")}
             </div>
           ) : null}
         </div>
