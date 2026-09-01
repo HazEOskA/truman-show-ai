@@ -39,7 +39,7 @@ const PL: Dictionary = {
   "mobile.systems": "Systemy",
   "mobile.lab": "Lab",
   "mobile.more": "Więcej",
-  "preview.eyebrow": "HYDRA WORLD // MOBILE CONTROL",
+  "preview.eyebrow": "HYDRA WORLD // STEROWANIE MOBILNE",
   "preview.title": "Obserwatorium świata",
   "preview.subtitle": "Mobilny pulpit do obserwacji i sterowania żyjącym światem 24/7.",
   "preview.worldStatus": "Status świata",
@@ -52,8 +52,11 @@ const PL: Dictionary = {
   "preview.openCity": "Otwórz miasto",
   "preview.fullscreen": "Pełny ekran",
   "preview.activity": "Najważniejsze zdarzenia",
+  "preview.eventStream": "STRUMIEŃ ZDARZEŃ",
   "preview.systems": "Systemy świata",
+  "preview.worldSystems": "SYSTEMY ŚWIATA",
   "preview.runtime": "Stan silnika",
+  "preview.runtimeLabel": "SILNIK ŚWIATA",
   "preview.good": "Stabilny",
   "preview.worker": "Worker",
   "preview.api": "API",
@@ -61,7 +64,11 @@ const PL: Dictionary = {
   "preview.economy": "Gospodarka",
   "preview.energy": "Energia",
   "preview.resources": "Zasoby",
-  "preview.environment": "Środowisko"
+  "preview.environment": "Środowisko",
+  "preview.event.grid": "Sieć ustabilizowała się po skoku zapotrzebowania",
+  "preview.event.forest": "Zaktualizowano biomasę pola leśnego",
+  "preview.event.company": "Firma zakończyła cykl produkcyjny",
+  "preview.event.citizen": "Mieszkaniec zmienił lokalizację pracy"
 };
 
 const EN: Dictionary = {
@@ -110,8 +117,11 @@ const EN: Dictionary = {
   "preview.openCity": "Open city",
   "preview.fullscreen": "Fullscreen",
   "preview.activity": "Important events",
+  "preview.eventStream": "EVENT STREAM",
   "preview.systems": "World systems",
+  "preview.worldSystems": "WORLD SYSTEMS",
   "preview.runtime": "Runtime health",
+  "preview.runtimeLabel": "WORLD RUNTIME",
   "preview.good": "Stable",
   "preview.worker": "Worker",
   "preview.api": "API",
@@ -119,7 +129,11 @@ const EN: Dictionary = {
   "preview.economy": "Economy",
   "preview.energy": "Energy",
   "preview.resources": "Resources",
-  "preview.environment": "Environment"
+  "preview.environment": "Environment",
+  "preview.event.grid": "Grid stabilised after demand spike",
+  "preview.event.forest": "Forest field biomass updated",
+  "preview.event.company": "Company production cycle completed",
+  "preview.event.citizen": "Citizen changed workplace location"
 };
 
 type I18nContextValue = {
