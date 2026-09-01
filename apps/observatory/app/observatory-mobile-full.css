@@ -1,0 +1,366 @@
+/* Final mobile system for the entire Hydra World Observatory.
+   Loaded LAST. Desktop is untouched; phone/tablet gets a real full-width interface. */
+
+@media (max-width: 900px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden !important;
+    font-size: 14px;
+  }
+
+  body { min-height: 100dvh; }
+
+  .shell,
+  .shell--observatory,
+  .shell--city-stage,
+  .shell--play {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    display: block !important;
+  }
+
+  /* Desktop chrome must never survive on a phone. */
+  .desktop-observatory-nav,
+  .sidebar--command,
+  .sidebar--legacy {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    flex-basis: 0 !important;
+  }
+
+  .mobile-observatory-topbar { display: flex !important; }
+  .mobile-bottom-nav { display: grid !important; }
+
+  .shell--observatory .main,
+  .shell--city-stage .main {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding:
+      calc(70px + env(safe-area-inset-top))
+      12px
+      calc(92px + env(safe-area-inset-bottom)) !important;
+    overflow-x: hidden !important;
+  }
+
+  .main > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* Shared page chrome */
+  .topbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 6px !important;
+    align-items: start !important;
+    margin: 2px 0 14px !important;
+  }
+
+  .topbar h2 {
+    margin: 0 !important;
+    font-size: clamp(20px, 6vw, 28px) !important;
+    line-height: 1.05 !important;
+    letter-spacing: .055em !important;
+  }
+
+  .topbar .clock {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+  }
+
+  .card {
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 100%;
+    padding: 14px !important;
+    border-radius: 12px !important;
+  }
+
+  .card h3 {
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+  }
+
+  .grid,
+  .grid.cols-2,
+  .grid.cols-3,
+  .grid.cols-4,
+  .grid.cols-6 {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .row {
+    width: 100%;
+    max-width: 100%;
+    gap: 8px !important;
+  }
+
+  button,
+  .btn,
+  input,
+  select,
+  .action,
+  .link {
+    min-height: 44px !important;
+  }
+
+  input,
+  select {
+    max-width: 100%;
+    font-size: 16px !important; /* prevents browser zoom on focus */
+  }
+
+  /* Data-heavy routes remain readable instead of shrinking to desktop scale. */
+  .scroll {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-inline: contain;
+  }
+
+  table {
+    min-width: 680px;
+    font-size: 12px !important;
+  }
+
+  th,
+  td {
+    padding: 9px 10px !important;
+    white-space: nowrap;
+  }
+
+  canvas,
+  svg,
+  img {
+    max-width: 100%;
+  }
+
+  /* HOME: phone gets the compact live-world composition, not the desktop command centre. */
+  .command-center {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .command-center .command-hero,
+  .command-center .control-deck,
+  .command-center .dashboard-grid,
+  .command-center .module-section,
+  .command-center .command-footer {
+    display: none !important;
+  }
+
+  .command-center .mobile-priority-card {
+    display: grid !important;
+  }
+
+  .command-center .metrics-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-top: 12px !important;
+  }
+
+  .metric-card {
+    min-width: 0 !important;
+    padding: 13px !important;
+  }
+
+  .metric-card strong { font-size: 22px !important; }
+  .metric-card small { font-size: 9px !important; line-height: 1.35 !important; }
+
+  /* CITY VIEW: map first. No desktop rails, no Genesis card dominating the phone. */
+  .shell--city-stage .main {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .city {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    min-height: calc(100dvh - 150px) !important;
+    height: auto !important;
+    margin: 0 !important;
+    overflow: hidden;
+  }
+
+  .city-bar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+    width: 100% !important;
+    padding: 10px 12px !important;
+    align-items: center !important;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .city-bar > .card,
+  .city-bar .world-picker-card,
+  .city-honesty {
+    display: none !important;
+  }
+
+  .city-clock strong { font-size: 15px !important; }
+  .city-clock span { font-size: 9px !important; }
+  .city-counts { font-size: 10px !important; text-align: right; }
+
+  .city-body {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .city-stage {
+    order: -1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 54dvh !important;
+    min-height: 360px !important;
+    max-height: 620px !important;
+    flex: 0 0 auto !important;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .city-canvas {
+    width: 100% !important;
+    height: 100% !important;
+    touch-action: none;
+  }
+
+  .city-panel,
+  .city-inspector {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--line) !important;
+    padding: 12px !important;
+    overflow: visible !important;
+    background: #0b0e14 !important;
+  }
+
+  .city-panel {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .city-panel section {
+    width: 100%;
+    min-width: 0;
+    margin: 0 !important;
+    padding: 13px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+  }
+
+  .city-panel h3,
+  .city-inspector h3 {
+    font-size: 13px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .chips { gap: 7px !important; }
+  .chip {
+    min-height: 44px !important;
+    padding: 9px 11px !important;
+    font-size: 10px !important;
+    display: inline-flex !important;
+    align-items: center;
+  }
+
+  .city-inspector {
+    padding-bottom: 22px !important;
+  }
+
+  /* Map projection */
+  .main canvas[width="900"] {
+    width: 100% !important;
+    height: auto !important;
+    aspect-ratio: 16 / 10;
+  }
+
+  /* Immersive play mode owns the whole phone screen; its own touch controls remain intact. */
+  .shell--play .desktop-observatory-nav,
+  .shell--play .mobile-observatory-topbar,
+  .shell--play .mobile-bottom-nav {
+    display: none !important;
+  }
+
+  .shell--play .main {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .play-shell {
+    width: 100% !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+  }
+
+  .play-stage {
+    min-height: 0 !important;
+  }
+
+  /* Prevent any route-specific desktop width from leaking into phone layout. */
+  .shell--observatory [style*="width"],
+  .shell--city-stage [style*="width"] {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 430px) {
+  .shell--observatory .main {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .shell--city-stage .main {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .mobile-observatory-topbar { padding-inline: 10px !important; }
+  .mobile-live { display: none !important; }
+
+  .command-center .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .city-stage {
+    height: 50dvh !important;
+    min-height: 330px !important;
+  }
+
+  .mobile-sheet-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 370px) {
+  .command-center .metrics-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  .mobile-bottom-nav { left: 5px !important; right: 5px !important; }
+  .mobile-bottom-nav a,
+  .mobile-bottom-nav button { font-size: 6.5px !important; }
+}
